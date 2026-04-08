@@ -1,0 +1,235 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #020617;
+  color: #e2e8f0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:shadow-md;
+}
+
+.btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-900/30;
+}
+
+.btn-secondary {
+  @apply bg-gray-200 text-gray-800 hover:bg-gray-300 hover:shadow-slate-400/20;
+}
+
+.btn-danger {
+  @apply bg-red-600 text-white hover:bg-red-700 hover:shadow-red-900/30;
+}
+
+.card {
+  @apply rounded-lg bg-white p-6 shadow-md transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl;
+}
+
+.form-input {
+  @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+.alert {
+  @apply px-4 py-3 rounded-lg mb-4;
+}
+
+.alert-success {
+  @apply bg-green-100 text-green-700;
+}
+
+.alert-error {
+  @apply bg-red-100 text-red-700;
+}
+
+.alert-warning {
+  @apply bg-yellow-100 text-yellow-700;
+}
+
+.theme-page {
+  @apply min-h-screen bg-slate-950 text-white;
+  animation: pageFade 0.7s ease-out;
+}
+
+.theme-shell {
+  @apply mx-auto max-w-7xl px-6 py-8 lg:px-8;
+}
+
+.theme-hero {
+  @apply overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-8 shadow-xl shadow-black/10;
+  animation: riseIn 0.8s ease-out both;
+}
+
+.theme-panel {
+  @apply rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-xl shadow-black/10 transition-all duration-300 ease-out hover:-translate-y-1 hover:border-amber-300/20 hover:shadow-2xl hover:shadow-black/20;
+  animation: riseIn 0.8s ease-out both;
+}
+
+.theme-card {
+  @apply rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-6 shadow-xl shadow-black/10 transition-all duration-300 ease-out hover:-translate-y-1 hover:border-amber-300/20 hover:shadow-2xl hover:shadow-black/20;
+  animation: riseIn 0.9s ease-out both;
+}
+
+.theme-soft-card {
+  @apply rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:border-white/20 hover:bg-slate-900 hover:shadow-xl hover:shadow-black/20;
+  animation: softPop 0.7s ease-out both;
+}
+
+.theme-title {
+  @apply text-3xl font-semibold text-white sm:text-4xl;
+}
+
+.theme-subtitle {
+  @apply text-sm uppercase tracking-[0.35em] text-amber-300;
+}
+
+.theme-text {
+  @apply text-slate-300;
+}
+
+.theme-muted {
+  @apply text-slate-400;
+}
+
+.theme-input {
+  @apply w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-400;
+}
+
+.theme-select {
+  @apply w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-400;
+}
+
+.theme-primary-btn {
+  @apply rounded-full bg-amber-400 px-5 py-3 font-semibold text-slate-950 shadow-lg shadow-amber-500/10 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-amber-300 hover:shadow-xl hover:shadow-amber-500/20 active:translate-y-0 active:shadow-lg;
+}
+
+.theme-secondary-btn {
+  @apply rounded-full border border-white/15 px-5 py-3 font-medium text-white shadow-lg shadow-black/5 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-amber-300/40 hover:bg-white/10 hover:text-amber-100 hover:shadow-xl hover:shadow-black/20 active:translate-y-0 active:shadow-lg;
+}
+
+.theme-danger-btn {
+  @apply rounded-full border border-red-400/20 bg-red-500/15 px-5 py-3 font-semibold text-red-100 shadow-lg shadow-red-900/10 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-red-300/40 hover:bg-red-500 hover:text-white hover:shadow-xl hover:shadow-red-900/30 active:translate-y-0 active:shadow-lg;
+}
+
+.page-animate {
+  animation: pageFade 0.7s ease-out both;
+}
+
+.nav-animate {
+  animation: slideDown 0.6s ease-out both;
+}
+
+.footer-animate {
+  animation: riseIn 0.8s ease-out both;
+}
+
+.stagger-children > * {
+  opacity: 0;
+  animation: riseIn 0.7s ease-out forwards;
+}
+
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+.stagger-children > *:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.stagger-children > *:nth-child(3) {
+  animation-delay: 0.19s;
+}
+
+.stagger-children > *:nth-child(4) {
+  animation-delay: 0.26s;
+}
+
+.stagger-children > *:nth-child(5) {
+  animation-delay: 0.33s;
+}
+
+.stagger-children > *:nth-child(6) {
+  animation-delay: 0.4s;
+}
+
+.stagger-children > *:nth-child(7) {
+  animation-delay: 0.47s;
+}
+
+.stagger-children > *:nth-child(8) {
+  animation-delay: 0.54s;
+}
+
+@keyframes pageFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes softPop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
