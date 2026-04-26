@@ -20,10 +20,22 @@ export const getAllServices = async (req, res, next) => {
       })
       .sort({ createdAt: -1 });
 
+    const filteredServices = services.filter((service) => {
+      if (!service.barberId) {
+        return true;
+      }
+
+      return (
+        service.barberId.isActive !== false &&
+        service.barberId.isApproved === true &&
+        (service.barberId.listingStatus === 'approved' || service.barberId.listingStatus === undefined)
+      );
+    });
+
     res.json({
       success: true,
-      count: services.length,
-      services,
+      count: filteredServices.length,
+      services: filteredServices,
     });
   } catch (error) {
     next(error);

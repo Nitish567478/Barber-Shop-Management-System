@@ -16,6 +16,10 @@
     "build:client": "cd client && npm run build"
   },
   "devDependencies": {
-    "concurrently": "^8.0.0"
+    "concurrently": "^8.0.0",
+    "prerender-spa-plugin": "^3.4.0"
+  },
+  "dependencies": {
+    "react-helmet-async": "^3.0.0"
   }
 }

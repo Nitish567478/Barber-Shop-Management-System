@@ -8,6 +8,7 @@ import {
   getAppointmentById,
   getBarberAppointments,
   updateBarberAppointment,
+  submitAppointmentFeedback,
 } from '../controllers/appointmentController.js';
 import { validateAppointment, validate } from '../validators/validators.js';
 import { authenticateToken, authorizeRole } from '../middleware/auth.js';
@@ -23,6 +24,7 @@ router.put('/barber/:id', authorizeRole('barber'), updateBarberAppointment);
 // User routes
 router.get('/my-appointments', getUserAppointments);
 router.post('/', validateAppointment, validate, createAppointment);
+router.post('/:id/feedback', submitAppointmentFeedback);
 router.get('/:id', getAppointmentById);
 
 // Admin routes

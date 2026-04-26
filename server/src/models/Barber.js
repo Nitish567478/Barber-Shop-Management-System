@@ -53,9 +53,19 @@ const barberSchema = new mongoose.Schema(
       type: [String],
       default: ['haircut', 'shaving'],
     },
+    staffMembers: {
+      type: [String],
+      default: [],
+    },
     experience: {
       type: Number,
       default: 0,
+    },
+    slotCapacity: {
+      type: Number,
+      default: 3,
+      min: 1,
+      max: 20,
     },
     rating: {
       type: Number,
@@ -90,6 +100,29 @@ const barberSchema = new mongoose.Schema(
     isApproved: {
       type: Boolean,
       default: false,
+    },
+    listingStatus: {
+      type: String,
+      enum: ['draft', 'pending', 'approved', 'rejected'],
+      default: 'draft',
+    },
+    listingRequestedAt: {
+      type: Date,
+      default: null,
+    },
+    listingApprovedAt: {
+      type: Date,
+      default: null,
+    },
+    suspendedUntil: {
+      type: Date,
+      default: null,
+    },
+    suspensionReason: {
+      type: String,
+      trim: true,
+      maxLength: [300, 'Suspension reason cannot exceed 300 characters'],
+      default: '',
     },
   },
   { timestamps: true }

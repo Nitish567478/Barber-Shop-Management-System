@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
+import BarberShopLoader from "../components/BarberShopLoader";
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ const ProfilePage = () => {
     name: '',
     email: '',
     phone: '',
+    profilePicture: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -21,6 +23,7 @@ const ProfilePage = () => {
         name: user.name || '',
         email: user.email || '',
         phone: user.phone || '',
+        profilePicture: user.profilePicture || '',
       });
     }
   }, [user]);
@@ -48,6 +51,17 @@ const ProfilePage = () => {
       setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+        <div className="text-center">
+          <div className="loading loading-spinner loading-lg text-amber-400"></div>
+          <p className="mt-4 text-sm uppercase tracking-[0.35em] text-slate-300"><BarberShopLoader /></p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="theme-page">
@@ -85,6 +99,26 @@ const ProfilePage = () => {
               />
               <p className="mt-2 text-xs text-slate-400">Email cannot be changed</p>
             </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-200">Profile Photo URL</label>
+              <input
+                type="url"
+                name="profilePicture"
+                value={formData.profilePicture}
+                onChange={handleChange}
+                className="theme-input w-full"
+                placeholder="https://example.com/profile.jpg"
+              />
+              <p className="mt-2 text-xs text-slate-400">Paste an image URL to show your photo on dashboards.</p>
+            </div>
+
+            {formData.profilePicture && (
+              <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <img src={formData.profilePicture} alt="Profile preview" className="h-16 w-16 rounded-2xl object-cover" />
+                <p className="text-sm text-slate-300">Profile photo preview</p>
+              </div>
+            )}
 
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-200">Phone Number</label>

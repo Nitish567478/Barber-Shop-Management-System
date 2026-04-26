@@ -10,21 +10,16 @@ const BarberShopLoader = () => {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 480px;
-            background-color: #020617;
-            border-radius: 12px;
-            padding: 30px;
             font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif;
             position: relative;
             overflow: hidden;
-            box-shadow: inset 0 0 40px rgba(0,0,0,0.1);
           }
 
           .man-figure-container {
             position: relative;
             width: 180px;
             height: 220px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             display: flex;
             justify-content: center;
             align-items: flex-start;

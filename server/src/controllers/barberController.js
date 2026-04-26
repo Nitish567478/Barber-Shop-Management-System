@@ -5,7 +5,41 @@ import { AppError } from '../middleware/errorHandler.js';
 // Get all barbers
 export const getAllBarbers = async (req, res, next) => {
   try {
-    const barbers = await Barber.find({ isActive: true, isApproved: true })
+    await Barber.updateMany(
+      { suspendedUntil: { $lte: new Date() }, isActive: false },
+      { $set: { isActive: true, suspensionReason: '' }, $unset: { suspendedUntil: '' } }
+    );
+
+    const barbers = await Barber.find({
+      isActive: true,
+      isApproved: true,
+      $or: [{ listingStatus: 'approved' }, { listingStatus: { $exists: false } }],
+    })
+      .populate('userId', 'name email phone')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: barbers.length,
+      barbers,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get all barber shops for admin, including suspended shops
+export const getAdminBarbers = async (req, res, next) => {
+  try {
+    await Barber.updateMany(
+      { suspendedUntil: { $lte: new Date() }, isActive: false },
+      { $set: { isActive: true, suspensionReason: '' }, $unset: { suspendedUntil: '' } }
+    );
+
+    const barbers = await Barber.find({
+      isApproved: true,
+      $or: [{ listingStatus: 'approved' }, { listingStatus: { $exists: false } }],
+    })
       .populate('userId', 'name email phone')
       .sort({ createdAt: -1 });
 
@@ -53,6 +87,8 @@ export const addBarber = async (req, res, next) => {
       shopImage,
       openingTime,
       closingTime,
+      staffMembers,
+      slotCapacity,
     } = req.body;
 
     const user = await User.findById(userId);
@@ -75,6 +111,8 @@ export const addBarber = async (req, res, next) => {
       shopImage: shopImage || '',
       openingTime: openingTime || '09:00',
       closingTime: closingTime || '18:00',
+      staffMembers: Array.isArray(staffMembers) ? staffMembers : [],
+      slotCapacity: Number(slotCapacity) || 3,
     });
 
     await barber.save();
@@ -104,6 +142,10 @@ export const updateBarber = async (req, res, next) => {
       shopImage,
       openingTime,
       closingTime,
+      listingStatus,
+      isApproved,
+      staffMembers,
+      slotCapacity,
     } = req.body;
 
     const barber = await Barber.findByIdAndUpdate(
@@ -119,6 +161,10 @@ export const updateBarber = async (req, res, next) => {
         shopImage,
         openingTime,
         closingTime,
+        listingStatus,
+        isApproved,
+        staffMembers,
+        slotCapacity,
       },
       { new: true, runValidators: true }
     ).populate('userId', 'name email phone');
@@ -188,6 +234,9 @@ export const updateMyBarberProfile = async (req, res, next) => {
       shopImage,
       openingTime,
       closingTime,
+      submitForApproval,
+      staffMembers,
+      slotCapacity,
     } = req.body;
 
     const normalizedSpecialization = Array.isArray(specialization)
@@ -228,6 +277,24 @@ export const updateMyBarberProfile = async (req, res, next) => {
     if (closingTime !== undefined) {
       updates.closingTime = closingTime;
     }
+    if (staffMembers !== undefined) {
+      updates.staffMembers = Array.isArray(staffMembers)
+        ? staffMembers.map((item) => String(item).trim()).filter(Boolean)
+        : String(staffMembers || '')
+            .split(/\r?\n|,/)
+            .map((item) => item.trim())
+            .filter(Boolean);
+    }
+    if (slotCapacity !== undefined) {
+      updates.slotCapacity = Math.max(1, Number(slotCapacity) || 1);
+    }
+
+    if (submitForApproval === true) {
+      updates.listingStatus = 'pending';
+      updates.listingRequestedAt = new Date();
+      updates.listingApprovedAt = null;
+      updates.isApproved = false;
+    }
 
     const barber = await Barber.findOneAndUpdate({ userId: req.user.userId }, updates, {
       new: true,
@@ -248,10 +315,42 @@ export const updateMyBarberProfile = async (req, res, next) => {
   }
 };
 
+export const submitBarberListing = async (req, res, next) => {
+  try {
+    const barber = await Barber.findOne({ userId: req.user.userId }).populate(
+      'userId',
+      'name email phone'
+    );
+
+    if (!barber) {
+      throw new AppError('Barber profile not found', 404);
+    }
+
+    if (!barber.shopName?.trim() || !barber.location?.trim()) {
+      throw new AppError('Please complete shop name and location before submitting for approval', 400);
+    }
+
+    barber.listingStatus = 'pending';
+    barber.listingRequestedAt = new Date();
+    barber.listingApprovedAt = null;
+    barber.isApproved = false;
+
+    await barber.save();
+
+    res.json({
+      success: true,
+      message: 'Your barber shop has been submitted for admin approval',
+      barber,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Get pending barber approvals (Admin only)
 export const getPendingBarbers = async (req, res, next) => {
   try {
-    const pendingBarbers = await Barber.find({ isApproved: false })
+    const pendingBarbers = await Barber.find({ listingStatus: 'pending' })
       .populate('userId', 'name email phone')
       .sort({ createdAt: -1 });
 
@@ -270,7 +369,11 @@ export const approveBarber = async (req, res, next) => {
   try {
     const barber = await Barber.findByIdAndUpdate(
       req.params.id,
-      { isApproved: true },
+      {
+        isApproved: true,
+        listingStatus: 'approved',
+        listingApprovedAt: new Date(),
+      },
       { new: true, runValidators: true }
     ).populate('userId', 'name email phone');
 
@@ -291,7 +394,15 @@ export const approveBarber = async (req, res, next) => {
 // Reject a barber (Admin only)
 export const rejectBarber = async (req, res, next) => {
   try {
-    const barber = await Barber.findByIdAndDelete(req.params.id);
+    const barber = await Barber.findByIdAndUpdate(
+      req.params.id,
+      {
+        isApproved: false,
+        listingStatus: 'rejected',
+        listingApprovedAt: null,
+      },
+      { new: true, runValidators: true }
+    );
 
     if (!barber) {
       throw new AppError('Barber not found', 404);
@@ -299,7 +410,7 @@ export const rejectBarber = async (req, res, next) => {
 
     res.json({
       success: true,
-      message: 'Barber rejected and removed',
+      message: 'Barber listing request rejected',
     });
   } catch (error) {
     next(error);

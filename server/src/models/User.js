@@ -21,7 +21,14 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, 'Please enter your password'],
-      minLength: [6, 'Password should be at least 6 characters'],
+      minLength: [8, 'Password should be at least 8 characters'],
+      validate: {
+        validator: function (value) {
+          return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(value);
+        },
+        message:
+          'Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character',
+      },
       select: false,
     },
     phone: {
@@ -40,6 +47,16 @@ const userSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    passwordResetToken: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+      select: false,
     },
   },
   { timestamps: true }

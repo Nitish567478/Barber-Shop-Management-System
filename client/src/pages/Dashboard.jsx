@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { appointmentsAPI, invoicesAPI } from '../services/api';
+import { appointmentsAPI, couponsAPI, invoicesAPI } from '../services/api';
+
+import BarberShopLoader from "../components/BarberShopLoader";
+
+const formatCurrency = (value) => `Rs. ${Number(value || 0).toLocaleString('en-IN')}`;
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -14,6 +18,8 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [vouchers, setVouchers] = useState([]);
+  const [recentAppointments, setRecentAppointments] = useState([]);
 
   const statCards = [
     {
@@ -42,7 +48,7 @@ const Dashboard = () => {
     },
     {
       label: 'Total Spent',
-      value: `Rs. ${stats.totalSpent}`,
+      value: formatCurrency(stats.totalSpent),
       note: 'Investment in grooming',
       accent: 'from-rose-400/20 via-rose-300/10 to-transparent',
       ring: 'border-rose-300/20',
@@ -51,7 +57,7 @@ const Dashboard = () => {
   ];
 
   const quickActions = [
-    { label: 'Book Appointment', path: '/book-appointment', primary: true },
+    { label: 'Book Appointment', path: '/barbers', primary: true },
     { label: 'My Appointments', path: '/my-appointments' },
     { label: 'My Invoices', path: '/my-invoices' },
     { label: 'Services', path: '/services' },
@@ -65,13 +71,18 @@ const Dashboard = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const [appointmentsRes, invoicesRes] = await Promise.all([
+        const [appointmentsRes, invoicesRes, vouchersRes] = await Promise.allSettled([
           appointmentsAPI.getUserAppointments(),
           invoicesAPI.getUserInvoices(),
+          couponsAPI.getMyVouchers(),
         ]);
 
-        const appointments = appointmentsRes.data.appointments || [];
-        const invoices = invoicesRes.data.invoices || [];
+        const appointments =
+          appointmentsRes.status === 'fulfilled' ? appointmentsRes.value.data.appointments || [] : [];
+        const invoices =
+          invoicesRes.status === 'fulfilled' ? invoicesRes.value.data.invoices || [] : [];
+        const nextVouchers =
+          vouchersRes.status === 'fulfilled' ? vouchersRes.value.data.coupons || [] : [];
 
         const upcoming = appointments.filter(
           (apt) => apt.status === 'scheduled'
@@ -79,8 +90,12 @@ const Dashboard = () => {
         const completed = appointments.filter(
           (apt) => apt.status === 'completed'
         ).length;
-        const totalSpent = invoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
+        const totalSpent = invoices
+          .filter((inv) => !inv.paymentStatus || inv.paymentStatus === 'completed')
+          .reduce((sum, inv) => sum + (inv.amount || 0), 0);
 
+        setVouchers(nextVouchers);
+        setRecentAppointments(appointments.slice(0, 4));
         setStats({
           upcomingAppointments: upcoming,
           completedAppointments: completed,
@@ -103,7 +118,7 @@ const Dashboard = () => {
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <div className="text-center">
           <div className="loading loading-spinner loading-lg text-amber-400"></div>
-          <p className="mt-4 text-sm uppercase tracking-[0.35em] text-slate-300">Loading dashboard</p>
+          <p className="mt-4 text-sm uppercase tracking-[0.35em] text-slate-300"><BarberShopLoader /></p>
         </div>
       </div>
     );
@@ -113,8 +128,19 @@ const Dashboard = () => {
     <div className="theme-page">
       <main className="theme-shell">
         <div className="theme-hero mb-8">
-          <p className="theme-subtitle">Customer Dashboard</p>
-          <h1 className="mt-4 text-4xl font-semibold text-white">Welcome back, {user?.name}</h1>
+          <div className="flex flex-col gap-5 md:flex-row md:items-center">
+            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl border border-amber-300/20 bg-amber-400/10 text-3xl font-semibold text-amber-100">
+              {user?.profilePicture ? (
+                <img src={user.profilePicture} alt={user?.name || 'Profile'} className="h-full w-full object-cover" />
+              ) : (
+                user?.name?.charAt(0)?.toUpperCase() || 'U'
+              )}
+            </div>
+            <div>
+              <p className="theme-subtitle">Customer Dashboard</p>
+              <h1 className="mt-4 text-4xl font-semibold text-white">Welcome back, {user?.name}</h1>
+            </div>
+          </div>
           <p className="mt-3 text-sm leading-6 text-slate-300">
             Track appointments, monitor spending, and access your complete grooming account in one place.
           </p>
@@ -220,6 +246,66 @@ const Dashboard = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+          <section className="theme-card">
+            <div className="mb-5 border-b border-white/10 pb-4">
+              <h2 className="text-xl font-bold text-white">Smile Vouchers</h2>
+              <p className="mt-2 text-sm text-slate-400">Regular customer coupons from your barbers.</p>
+            </div>
+            {vouchers.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-slate-400">
+                No active voucher yet. Complete more bookings to unlock regular customer offers.
+              </p>
+            ) : (
+              <div className="grid gap-3">
+                {vouchers.slice(0, 4).map((voucher) => (
+                  <div key={voucher._id} className="rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.22em] text-amber-200">Smile Voucher</p>
+                        <h3 className="mt-2 font-semibold text-white">{voucher.title}</h3>
+                        <p className="mt-1 text-sm text-slate-300">{voucher.barberId?.shopName || 'Barber shop'}</p>
+                      </div>
+                      <span className="rounded-xl bg-slate-950/70 px-3 py-2 font-semibold text-amber-100">{voucher.code}</span>
+                    </div>
+                    <p className="mt-3 text-sm text-amber-100">
+                      {voucher.discountType === 'flat' ? formatCurrency(voucher.discountValue) : `${voucher.discountValue}%`} off
+                      {voucher.minSpend ? ` on min ${formatCurrency(voucher.minSpend)}` : ''}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">Valid until {new Date(voucher.validUntil).toLocaleDateString()}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="theme-card">
+            <div className="mb-5 border-b border-white/10 pb-4">
+              <h2 className="text-xl font-bold text-white">Recent Booking Details</h2>
+              <p className="mt-2 text-sm text-slate-400">Quick view of your latest appointments.</p>
+            </div>
+            <div className="space-y-3">
+              {recentAppointments.map((appointment) => (
+                <div key={appointment._id} className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-white">{appointment.barberId?.shopName || appointment.barberId?.userId?.name || 'Barber shop'}</p>
+                      <p className="mt-1 text-sm text-slate-400">
+                        {new Date(appointment.appointmentDate).toLocaleDateString()} at {appointment.appointmentTime}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-300">Status: {appointment.status}</p>
+                    </div>
+                    <button onClick={() => navigate('/my-appointments')} className="theme-secondary-btn text-sm">
+                      Detail
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {recentAppointments.length === 0 && <p className="text-sm text-slate-400">No booking details yet.</p>}
+            </div>
+          </section>
         </div>
       </main>
     </div>

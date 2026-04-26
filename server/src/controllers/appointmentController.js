@@ -2,20 +2,33 @@ import { Appointment } from '../models/Appointment.js';
 import { Service } from '../models/Service.js';
 import { Barber } from '../models/Barber.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { sendBookingCompletedEmail } from '../utils/email.js';
+
+const appointmentPopulate = [
+  { path: 'customerId', select: 'name email phone' },
+  {
+    path: 'barberId',
+    populate: {
+      path: 'userId',
+      select: 'name email phone',
+    },
+  },
+  { path: 'serviceId', select: 'name price duration category barberId' },
+  { path: 'serviceIds', select: 'name price duration category barberId' },
+];
+
+const getServiceList = (appointment) => {
+  if (Array.isArray(appointment.serviceIds) && appointment.serviceIds.length > 0) {
+    return appointment.serviceIds;
+  }
+
+  return appointment.serviceId ? [appointment.serviceId] : [];
+};
 
 // Get all appointments
 export const getAllAppointments = async (req, res, next) => {
   try {
-    const appointments = await Appointment.find()
-      .populate('customerId', 'name email phone')
-      .populate({
-        path: 'barberId',
-        populate: {
-          path: 'userId',
-          select: 'name email phone',
-        },
-      })
-      .populate('serviceId', 'name price duration');
+    const appointments = await Appointment.find().populate(appointmentPopulate);
 
     res.json({
       success: true,
@@ -31,14 +44,7 @@ export const getAllAppointments = async (req, res, next) => {
 export const getUserAppointments = async (req, res, next) => {
   try {
     const appointments = await Appointment.find({ customerId: req.user.userId })
-      .populate({
-        path: 'barberId',
-        populate: {
-          path: 'userId',
-          select: 'name email phone',
-        },
-      })
-      .populate('serviceId', 'name price duration')
+      .populate(appointmentPopulate)
       .sort({ appointmentDate: -1 });
 
     res.json({
@@ -54,74 +60,128 @@ export const getUserAppointments = async (req, res, next) => {
 // Create appointment
 export const createAppointment = async (req, res, next) => {
   try {
-    const { barberId, serviceId, appointmentDate, appointmentTime, notes } = req.body;
+    const {
+      barberId,
+      serviceIds = [],
+      appointmentDate,
+      appointmentTime,
+      notes,
+      paymentMethod = 'cash',
+      selectedStaffName = '',
+    } = req.body;
 
-    const service = await Service.findById(serviceId);
-    if (!service) {
-      throw new AppError('Service not found', 404);
+    if (paymentMethod === 'online') {
+      throw new AppError('Online payment is coming soon. Please choose cash to continue.', 400);
     }
 
-    let assignedBarberId = barberId || service.barberId || null;
+    const services = await Service.find({
+      _id: { $in: serviceIds },
+      isActive: true,
+    });
+
+    if (services.length !== serviceIds.length) {
+      throw new AppError('One or more selected services are not available', 404);
+    }
+
+    const serviceBarberIds = [
+      ...new Set(
+        services
+          .map((service) => (service.barberId ? String(service.barberId) : null))
+          .filter(Boolean)
+      ),
+    ];
+
+    let assignedBarberId = barberId || serviceBarberIds[0] || null;
 
     if (barberId) {
       const barber = await Barber.findById(barberId);
-      if (!barber || !barber.isActive) {
+      if (
+        !barber ||
+        !barber.isActive ||
+        !barber.isApproved ||
+        (barber.suspendedUntil && barber.suspendedUntil > new Date()) ||
+        barber.listingStatus && barber.listingStatus !== 'approved'
+      ) {
         throw new AppError('Selected barber is not available', 404);
+      }
+      if (
+        serviceBarberIds.length > 0 &&
+        serviceBarberIds.some((serviceBarberId) => serviceBarberId !== String(barberId))
+      ) {
+        throw new AppError(
+          'Selected services belong to a different barber. Please choose services from the same barber.',
+          400
+        );
       }
     }
 
-    if (
-      service.barberId &&
-      assignedBarberId &&
-      String(service.barberId) !== String(assignedBarberId)
-    ) {
-      throw new AppError(
-        'This service belongs to a different barber. Please choose the matching barber or service.',
-        400
-      );
+    if (serviceBarberIds.length > 1) {
+      throw new AppError('Please choose services from one barber at a time.', 400);
     }
 
+    let barberProfile = null;
     if (assignedBarberId) {
-      const existingAppointment = await Appointment.findOne({
+      barberProfile = await Barber.findById(assignedBarberId);
+      if (
+        !barberProfile ||
+        !barberProfile.isActive ||
+        !barberProfile.isApproved ||
+        (barberProfile.suspendedUntil && barberProfile.suspendedUntil > new Date()) ||
+        (barberProfile.listingStatus && barberProfile.listingStatus !== 'approved')
+      ) {
+        throw new AppError('Selected barber is not available', 404);
+      }
+
+      if (
+        selectedStaffName &&
+        barberProfile.staffMembers.length > 0 &&
+        !barberProfile.staffMembers.includes(selectedStaffName)
+      ) {
+        throw new AppError('Selected staff member is not available in this shop', 400);
+      }
+
+      const slotStart = new Date(appointmentDate);
+      const slotEnd = new Date(appointmentDate);
+      slotStart.setHours(0, 0, 0, 0);
+      slotEnd.setHours(23, 59, 59, 999);
+
+      const existingAppointments = await Appointment.countDocuments({
         barberId: assignedBarberId,
         appointmentDate: {
-          $gte: new Date(appointmentDate).setHours(0, 0, 0),
-          $lte: new Date(appointmentDate).setHours(23, 59, 59),
+          $gte: slotStart,
+          $lte: slotEnd,
         },
         appointmentTime,
-        status: { $in: ['scheduled', 'completed'] },
+        status: 'scheduled',
       });
 
-      if (existingAppointment) {
+      if (existingAppointments >= (barberProfile.slotCapacity || 3)) {
         throw new AppError(
-          'Barber is not available at this time. Please choose another time slot.',
+          'This time slot is sold out. Please choose another time.',
           409
         );
       }
     }
 
+    const totalDuration = services.reduce((sum, service) => sum + (service.duration || 0), 0);
+    const totalPrice = services.reduce((sum, service) => sum + (service.price || 0), 0);
+
     const appointment = new Appointment({
       customerId: req.user.userId,
       barberId: assignedBarberId,
-      serviceId,
+      serviceId: services[0]?._id || null,
+      serviceIds: services.map((service) => service._id),
       appointmentDate,
       appointmentTime,
-      duration: service.duration,
-      price: service.price,
+      duration: totalDuration,
+      price: totalPrice,
       notes,
+      paymentMethod,
+      selectedStaffName,
     });
 
     await appointment.save();
-    await appointment.populate([
-      { path: 'serviceId', select: 'name price duration' },
-      {
-        path: 'barberId',
-        populate: {
-          path: 'userId',
-          select: 'name email phone',
-        },
-      },
-    ]);
+    await appointment.populate(appointmentPopulate);
 
     res.status(201).json({
       success: true,
@@ -194,16 +254,7 @@ export const cancelAppointment = async (req, res, next) => {
 // Get appointment by ID
 export const getAppointmentById = async (req, res, next) => {
   try {
-    const appointment = await Appointment.findById(req.params.id)
-      .populate('customerId', 'name email phone')
-      .populate({
-        path: 'barberId',
-        populate: {
-          path: 'userId',
-          select: 'name email phone',
-        },
-      })
-      .populate('serviceId', 'name price duration');
+    const appointment = await Appointment.findById(req.params.id).populate(appointmentPopulate);
 
     if (!appointment) {
       throw new AppError('Appointment not found', 404);
@@ -226,9 +277,8 @@ export const getBarberAppointments = async (req, res, next) => {
     }
 
     const appointments = await Appointment.find({ barberId: barber._id })
-      .populate('customerId', 'name email phone')
-      .populate('serviceId', 'name price duration category')
-      .sort({ appointmentDate: 1, appointmentTime: 1 });
+      .populate(appointmentPopulate)
+      .sort({ createdAt: 1 });
 
     res.json({
       success: true,
@@ -259,6 +309,9 @@ export const updateBarberAppointment = async (req, res, next) => {
     }
 
     if (status) {
+      if (!['scheduled', 'completed', 'cancelled', 'no-show'].includes(status)) {
+        throw new AppError('Invalid booking status', 400);
+      }
       appointment.status = status;
     }
     if (appointmentDate) {
@@ -272,14 +325,57 @@ export const updateBarberAppointment = async (req, res, next) => {
     }
 
     await appointment.save();
-    await appointment.populate([
-      { path: 'customerId', select: 'name email phone' },
-      { path: 'serviceId', select: 'name price duration category' },
-    ]);
+    await appointment.populate(appointmentPopulate);
+
+    if (status === 'completed') {
+      await sendBookingCompletedEmail({
+        to: appointment.customerId?.email,
+        userName: appointment.customerId?.name,
+        shopName: appointment.barberId?.shopName,
+        appointment,
+      });
+    }
 
     res.json({
       success: true,
       message: 'Booking updated successfully',
+      appointment,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const submitAppointmentFeedback = async (req, res, next) => {
+  try {
+    const { rating, comment, improvement } = req.body;
+    const appointment = await Appointment.findById(req.params.id);
+
+    if (!appointment) {
+      throw new AppError('Appointment not found', 404);
+    }
+
+    if (String(appointment.customerId) !== String(req.user.userId)) {
+      throw new AppError('You can only review your own completed appointment', 403);
+    }
+
+    if (appointment.status !== 'completed') {
+      throw new AppError('Feedback can only be given after the booking is completed', 400);
+    }
+
+    appointment.feedback = {
+      rating: Number(rating),
+      comment: comment || '',
+      improvement: improvement || '',
+      submittedAt: new Date(),
+    };
+
+    await appointment.save();
+    await appointment.populate(appointmentPopulate);
+
+    res.json({
+      success: true,
+      message: 'Feedback submitted successfully',
       appointment,
     });
   } catch (error) {

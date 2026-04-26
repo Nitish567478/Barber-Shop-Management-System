@@ -1,4 +1,4 @@
-import { User } from '../models/User.js';
+﻿import { User } from '../models/User.js';
 import { hashPassword } from './helpers.js';
 
 const DEFAULT_ADMIN = {
@@ -10,8 +10,26 @@ const DEFAULT_ADMIN = {
   isActive: true,
 };
 
+const repairUserEmailState = async () => {
+  const invalidEmailFilter = {
+    $or: [
+      { email: null },
+      { email: '' },
+      { email: { $exists: false } },
+    ],
+  };
+
+  const invalidUsers = await User.find(invalidEmailFilter).select('_id email name');
+  if (invalidUsers.length > 0) {
+    await User.deleteMany(invalidEmailFilter);
+    console.log(`Removed ${invalidUsers.length} invalid user record(s) with missing email before syncing indexes`);
+  }
+};
+
 export const ensureAdminUser = async () => {
-  // Keep MongoDB indexes aligned with the current schema.
+  await repairUserEmailState();
+
+  // Keep MongoDB indexes aligned with the current schema after cleanup.
   await User.syncIndexes();
 
   const email = DEFAULT_ADMIN.email.toLowerCase();

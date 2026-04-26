@@ -14,14 +14,24 @@ export const validateRegister = [
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
   body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters'),
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters'),
   body('phone').notEmpty().withMessage('Phone number is required'),
 ];
 
 export const validateLogin = [
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').notEmpty().withMessage('Password is required'),
+];
+
+export const validateForgotPassword = [
+  body('email').isEmail().withMessage('Valid email is required'),
+];
+
+export const validateResetPassword = [
+  body('password')
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters'),
 ];
 
 export const validateService = [
@@ -39,9 +49,10 @@ export const validateAppointment = [
     .optional({ values: 'falsy' })
     .matches(objectIdPattern)
     .withMessage('Selected barber is invalid'),
-  body('serviceId')
-    .notEmpty()
-    .withMessage('Service selection is required')
+  body('serviceIds')
+    .isArray({ min: 1 })
+    .withMessage('At least one service is required'),
+  body('serviceIds.*')
     .matches(objectIdPattern)
     .withMessage('Selected service is invalid'),
   body('appointmentDate')
@@ -50,4 +61,8 @@ export const validateAppointment = [
   body('appointmentTime')
     .notEmpty()
     .withMessage('Appointment time is required'),
+  body('paymentMethod')
+    .optional()
+    .isIn(['cash', 'online'])
+    .withMessage('Payment method is invalid'),
 ];

@@ -1,11 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
-import { connectDB } from './config/database.js';
+import { connectDB, isDatabaseConnected } from './config/database.js';
 import { config } from './config/config.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { ensureAdminUser } from './utils/ensureAdminUser.js';
+import { ensureDefaultServices } from './utils/ensureDefaultServices.js';
 import { seedDatabase } from './utils/seedDatabase.js';
+import { startBookingReminderWorker } from './utils/bookingReminders.js';
 
 // Import routes
 import authRoutes from './routes/authRoutes.js';
@@ -13,6 +15,8 @@ import serviceRoutes from './routes/serviceRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
 import barberRoutes from './routes/barberRoutes.js';
 import invoiceRoutes from './routes/invoiceRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
+import couponRoutes from './routes/couponRoutes.js';
 
 const app = express();
 
@@ -30,6 +34,8 @@ try {
   console.log('🔌 Attempting to connect to MongoDB...');
   await connectDB();
   await ensureAdminUser();
+  await ensureDefaultServices();
+  startBookingReminderWorker();
   dbConnected = true;
   console.log('✅ Database connected successfully!');
 } catch (error) {
@@ -173,11 +179,27 @@ app.post('/api/clear-and-seed', async (req, res) => {
 });
 
 
+
+
+// Fail fast when database is unavailable to avoid Mongoose buffering timeouts
+app.use('/api', (req, res, next) => {
+  if (isDatabaseConnected()) {
+    return next();
+  }
+
+  return res.status(503).json({
+    success: false,
+    message: 'Database is not connected. Please check MongoDB/Atlas configuration and try again.',
+  });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/barbers', barberRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/coupons', couponRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -190,6 +212,8 @@ app.get('/', (req, res) => {
       appointments: '/api/appointments',
       barbers: '/api/barbers',
       invoices: '/api/invoices',
+      reports: '/api/reports',
+      coupons: '/api/coupons',
       seed: 'POST /api/seed (development only)',
     },
   });
@@ -211,6 +235,9 @@ const PORT = config.port;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${config.nodeEnv}`);
-  console.log(`To seed database with dummy data: POST http://localhost:${PORT}/api/seed`);
+  console.log(`To seed database with data: POST http://localhost:${PORT}/api/seed`);
 });
+
+
+
 

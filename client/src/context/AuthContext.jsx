@@ -19,30 +19,45 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  // Check if user is logged in
+  // Check if saved auth is still valid and sync role from backend profile.
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
-    if (token && storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (parseError) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setError('Saved login session was invalid. Please sign in again.');
+    const initializeAuth = async () => {
+      if (!token) {
+        setLoading(false);
+        return;
       }
-    }
-    setLoading(false);
+
+      try {
+        const response = await authAPI.getProfile();
+        persistUser(response.data.user);
+      } catch (err) {
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
+        persistUser(null);
+        setError('Saved login session expired. Please sign in again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, rememberMe = true) => {
     try {
       setError(null);
       const response = await authAPI.login({ email, password });
       const { token, user } = response.data;
 
-      localStorage.setItem('token', token);
+      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
+      if (rememberMe) {
+        localStorage.setItem('token', token);
+      } else {
+        sessionStorage.setItem('token', token);
+      }
       persistUser(user);
 
       return user;
@@ -71,6 +86,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     persistUser(null);
   };
 

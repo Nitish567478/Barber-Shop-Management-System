@@ -4,6 +4,9 @@ import { barbersAPI } from '../services/api';
 import { fallbackBarbers } from '../data/featuredBarbers';
 import { isValidObjectId } from '../utils/objectId';
 
+
+import BarberShopLoader from "../components/BarberShopLoader";
+
 const barberVisuals = [
   'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=1200&q=80',
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=1200&q=80',
@@ -27,11 +30,21 @@ const normalizeSpecializations = (specialization) => {
 
 const getExperience = (barber) => barber.experience ?? barber.experienceYears ?? 0;
 const getWorkingHours = (barber) => {
-  if (barber.openingTime && barber.closingTime) {
-    return `${barber.openingTime} - ${barber.closingTime}`;
+  if (!barber.openingTime || !barber.closingTime) {
+    return 'Hours not added yet';
   }
 
-  return 'Hours not added yet';
+  const convertTo12Hour = (time) => {
+    const [hours, minutes] = time.split(':');
+    let hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'pm' : 'am';
+
+    hour = hour % 12 || 12;
+
+    return `${hour}:${minutes} ${ampm}`;
+  };
+
+  return `${convertTo12Hour(barber.openingTime)} - ${convertTo12Hour(barber.closingTime)}`;
 };
 
 const BarbersPage = () => {
@@ -57,14 +70,17 @@ const BarbersPage = () => {
     fetchBarbers();
   }, []);
 
-  const displayedBarbers = barbers.length > 0 ? barbers : fallbackBarbers;
+  const displayedBarbers = error ? fallbackBarbers : barbers;
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <div className="text-center">
           <div className="loading loading-spinner loading-lg text-amber-400"></div>
-          <p className="mt-4 text-sm uppercase tracking-[0.35em] text-slate-300">Loading barbers</p>
+          <p className="mt-4 text-sm uppercase tracking-[0.35em] text-slate-300">
+            <BarberShopLoader />
+            Loading barbers
+          </p>
         </div>
       </div>
     );

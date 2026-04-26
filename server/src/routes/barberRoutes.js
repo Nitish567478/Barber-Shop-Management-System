@@ -7,6 +7,8 @@ import {
   getBarberAvailability,
   getMyBarberProfile,
   updateMyBarberProfile,
+  submitBarberListing,
+  getAdminBarbers,
   getPendingBarbers,
   approveBarber,
   rejectBarber,
@@ -19,9 +21,11 @@ const router = express.Router();
 router.get('/', getAllBarbers);
 router.get('/me/profile', authenticateToken, authorizeRole('barber'), getMyBarberProfile);
 router.put('/me/profile', authenticateToken, authorizeRole('barber'), updateMyBarberProfile);
+router.post('/me/submit-listing', authenticateToken, authorizeRole('barber'), submitBarberListing);
 
 // Admin routes - specific before parameterized
 router.get('/admin/pending', authenticateToken, authorizeRole('admin'), getPendingBarbers);
+router.get('/admin/all', authenticateToken, authorizeRole('admin'), getAdminBarbers);
 router.put('/admin/:id/approve', authenticateToken, authorizeRole('admin'), approveBarber);
 router.delete('/admin/:id/reject', authenticateToken, authorizeRole('admin'), rejectBarber);
 

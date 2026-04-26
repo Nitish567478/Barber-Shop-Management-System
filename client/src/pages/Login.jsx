@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Eye, EyeOff } from 'lucide-react';
 import '../styles/globals.css';
 
 const Login = () => {
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ email: '', password: '', rememberMe: true });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     setError('');
   };
 
@@ -22,7 +24,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password);
+      await login(formData.email, formData.password, formData.rememberMe);
       // Redirect to the page they were trying to access, or dashboard if direct login
       const from = location.state?.from?.pathname || '/dashboard';
       navigate(from);
@@ -70,14 +72,39 @@ const Login = () => {
 
           <div className="mb-6">
             <label className="mb-2 block text-sm font-medium text-slate-200">Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="theme-input"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="theme-input pr-12"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-300 hover:bg-white/10"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <label className="flex items-center gap-2 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                name="rememberMe"
+                checked={formData.rememberMe}
+                onChange={handleChange}
+              />
+              Remember me
+            </label>
+            <Link to="/forgot-password" className="text-sm text-amber-300 hover:underline">
+              Forgot password?
+            </Link>
           </div>
 
           <button

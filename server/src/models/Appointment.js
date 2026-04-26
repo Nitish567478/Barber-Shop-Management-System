@@ -15,7 +15,19 @@ const appointmentSchema = new mongoose.Schema(
     serviceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Service',
-      required: true,
+      default: null,
+    },
+    serviceIds: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Service',
+        },
+      ],
+      validate: {
+        validator: (value) => Array.isArray(value) && value.length > 0,
+        message: 'Please select at least one service',
+      },
     },
     appointmentDate: {
       type: Date,
@@ -38,9 +50,47 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       maxLength: [500, 'Notes cannot exceed 500 characters'],
     },
+    selectedStaffName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    paymentMethod: {
+      type: String,
+      enum: ['cash', 'online'],
+      default: 'cash',
+    },
     price: {
       type: Number,
       required: true,
+    },
+    feedback: {
+      rating: {
+        type: Number,
+        min: 1,
+        max: 5,
+        default: null,
+      },
+      comment: {
+        type: String,
+        trim: true,
+        maxLength: [500, 'Feedback cannot exceed 500 characters'],
+        default: '',
+      },
+      improvement: {
+        type: String,
+        trim: true,
+        maxLength: [500, 'Improvement suggestion cannot exceed 500 characters'],
+        default: '',
+      },
+      submittedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+    reminderSentAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }
