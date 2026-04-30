@@ -829,4 +829,468 @@ The application follows a modern **Three-Tier Architecture**:
 
 ---
 
-##
+## 📜 Available Scripts
+
+This project uses npm workspaces to manage both frontend and backend from the root directory.
+
+### Root Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start both backend and frontend concurrently (recommended) |
+| `npm run dev:server` | Start only the backend server on port 5000 |
+| `npm run dev:client` | Start only the frontend client on port 5173 |
+| `npm run build` | Build both frontend and backend for production |
+| `npm run build:server` | Build only the backend |
+| `npm run build:client` | Build only the frontend |
+
+### Backend Scripts (server/)
+
+| Script | Description |
+|--------|-------------|
+| `npm start` | Start production server |
+| `npm run dev` | Start development server with nodemon |
+| `npm run build` | Compile JavaScript (for production) |
+
+### Frontend Scripts (client/)
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start Vite dev server |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview production build |
+| `npm run lint` | Run ESLint |
+
+---
+
+## 🚀 Deployment
+
+### Production Build
+
+**Frontend Build:**
+```bash
+cd client
+npm run build
+```
+
+This creates an optimized production build in `client/dist`.
+
+**Backend Build:**
+```bash
+cd server
+npm run build
+```
+
+### Deployment Platforms
+
+#### Frontend (Vercel, Netlify, Cloudflare Pages)
+
+1. Connect your GitHub repository
+2. Set build command: `cd client && npm run build`
+3. Set output directory: `client/dist`
+4. Add environment variable: `VITE_API_URL=https://your-api-domain.com/api`
+
+#### Backend (Railway, Render, Heroku, DigitalOcean)
+
+1. Set environment variables:
+   - `PORT` (default: 5000)
+   - `NODE_ENV=production`
+   - `MONGO_URI=your_mongodb_connection_string`
+   - `JWT_SECRET=your_secure_secret_key`
+   - `FRONTEND_URL=https://your-frontend.vercel.app`
+2. Set start command: `npm start`
+3. Ensure MongoDB is provisioned (Atlas or local)
+
+### Docker Deployment (Optional)
+
+```dockerfile
+# Backend Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY server/package*.json ./
+RUN npm ci --only=production
+COPY server/ ./
+EXPOSE 5000
+CMD ["npm", "start"]
+```
+
+```dockerfile
+# Frontend Dockerfile
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY client/package*.json client/
+RUN npm ci
+COPY client/ ./
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+### Environment Configuration
+
+**Production `.env` (Backend):**
+```env
+PORT=5000
+NODE_ENV=production
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/barber_shop
+JWT_SECRET=your_very_long_secure_random_string_min_32_chars
+FRONTEND_URL=https://your-production-domain.com
+```
+
+**Production `.env.local` (Frontend):**
+```env
+VITE_API_URL=https://your-api-domain.com/api
+```
+
+---
+
+## 🔒 Security Features
+
+### Authentication & Authorization
+
+- **JWT Tokens** — Stateless authentication with 24-hour expiry
+- **Password Hashing** — bcryptjs with salt rounds 10
+- **Role-Based Access Control (RBAC)** — Three user roles (customer, barber, admin)
+- **Protected Routes** — Middleware checks token and role permissions
+
+### Input Validation
+
+- **Express Validator** — Server-side validation for all inputs
+- **Email Format Validation** — RFC 5322 compliant
+- **Password Requirements** — Minimum 6 characters
+- **Sanitization** — XSS and SQL injection prevention
+
+### API Security
+
+- **CORS Configuration** — Whitelist specific origins
+- **Rate Limiting** — Prevent brute force attacks
+- **Error Handling** — Generic messages in production
+- **Request Size Limits** — Prevent large payload attacks
+
+### Data Security
+
+- **Environment Variables** — No secrets in code
+- **MongoDB Authentication** — Require credentials
+- **HTTPS/SSL** — Enforce in production
+- **Secure Cookies** — HttpOnly and Secure flags
+
+### Security Best Practices
+
+1. **Change default JWT_SECRET** in production
+2. **Enable HTTPS** on all production domains
+3. **Remove seed endpoint** from production (`/api/seed`)
+4. **Use strong MongoDB credentials**
+5. **Enable CORS whitelist** only for your frontend domain
+6. **Log security events** for monitoring
+7. **Keep dependencies updated** for security patches
+
+---
+
+## ⚡ Performance
+
+### Frontend Performance
+
+- **Vite** — Fast HMR and optimized builds
+- **Code Splitting** — Route-based lazy loading
+- **Image Optimization** — Compressed assets
+- **Tailwind CSS** — Purge unused styles
+- **Bundle Analysis** — Run `npm run build -- --report`
+
+### Backend Performance
+
+- **MongoDB Indexes** — Optimized queries on frequently accessed fields
+- **Pagination** — Limited results per request (default: 20)
+- **Caching** — Response caching for public data
+- **Connection Pooling** — Efficient database connections
+
+### API Response Time
+
+| Endpoint Type | Target | P95 |
+|---------------|--------|-----|
+| Simple GET | < 100ms | < 200ms |
+| Complex POST | < 150ms | < 300ms |
+| Database Query | < 50ms | < 100ms |
+
+### Performance Monitoring
+
+- **Backend:** Use Node.js built-in performance hooks
+- **Database:** MongoDB Atlas Performance Advisor
+- **Frontend:** Vercel Analytics or Lighthouse CI
+- **API:** Response time logging
+
+### Optimization Tips
+
+1. Use **pagination** for list endpoints
+2. Add **database indexes** for filters and sorts
+3. Implement **response caching** for public data
+4. Enable **Gzip compression** on server
+5. Use **CDN** for static assets
+6. Lazy load **heavy components**
+7. Optimize **images** before upload
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### 1. MongoDB Connection Error
+```
+Error: MongoNetworkError: connect ECONNREFUSED
+```
+**Solution:** 
+- Ensure MongoDB is running: `mongod`
+- Check connection string in `.env` file
+- Verify MongoDB Atlas cluster is not paused
+
+#### 2. CORS Error
+```
+Access to fetch at 'http://localhost:5000' from origin 'http://localhost:5173' has been blocked by CORS policy
+```
+**Solution:**
+- Update `FRONTEND_URL` in server `.env`
+- Check CORS configuration in `server/src/config/config.js`
+
+#### 3. JWT Token Error
+```
+JsonWebTokenError: jwt malformed
+```
+**Solution:**
+- Clear localStorage and login again
+- Verify token is being sent correctly
+- Check JWT_SECRET matches between servers
+
+#### 4. Port Already in Use
+```
+Error: listen EADDRINUSE: address already in use :::5000
+```
+**Solution:**
+- Kill process on port: `npx kill-port 5000`
+- Or change port in `.env`
+
+#### 5. Login Fails / Incorrect Credentials
+```
+Error: Invalid email or password
+```
+**Solution:**
+- Seed database first: `curl -X POST http://localhost:5000/api/seed`
+- Check user exists in database
+- Verify password is correct
+
+#### 6. Dashboard Shows Wrong Data
+- **Statistics show 0:** Page may still be loading - wait and refresh
+- **Wrong role shows:** Check user role in database - role is case-sensitive
+
+#### 7. Build Errors
+```
+Error: Cannot find module './routes'
+```
+**Solution:**
+- Run `npm install` in both root and server directories
+- Delete `node_modules` and reinstall
+
+#### 8. Frontend Not Loading
+```
+This site can't be reached
+```
+**Solution:**
+- Ensure Vite is running: `npm run dev`
+- Check port 5173 is not blocked by firewall
+
+### Debugging Tips
+
+1. **Check browser console** for JavaScript errors
+2. **Check network tab** for failed API requests
+3. **Use React DevTools** to inspect state
+4. **Enable MongoDB logs** for query debugging
+5. **Check server logs** for backend errors
+
+### Getting Help
+
+1. Check [Documentation Index](#-documentation-index)
+2. Search existing [GitHub Issues](https://github.com)
+3. Review [API Documentation](./docs/API.md)
+4. Check [Development Guide](./docs/DEVELOPMENT.md)
+
+---
+
+## 🤝 Contributing
+
+### Contributing Guidelines
+
+We welcome contributions! Please follow these steps:
+
+1. **Fork the Repository**
+2. **Create a Feature Branch**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+3. **Make Your Changes**
+   - Follow the coding standards
+   - Add comments for complex logic
+   - Test your changes locally
+4. **Commit Your Changes**
+   ```bash
+   git commit -m 'Add: your feature description'
+   ```
+5. **Push to GitHub**
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+6. **Create a Pull Request**
+
+### Coding Standards
+
+**Frontend (React):**
+- Use functional components with hooks
+- Follow React naming conventions (`PascalCase` for components)
+- Use Tailwind CSS classes for styling
+- Export components for reuse
+
+**Backend (Node.js):**
+- Use ES6+ syntax
+- Follow Express.js best practices
+- Use async/await for async operations
+- Handle errors with try/catch blocks
+
+**General:**
+- Use meaningful variable names
+- Add comments for complex logic
+- Keep functions small and focused
+- Write descriptive commit messages
+
+### Commit Message Format
+
+```
+<type>: <subject>
+
+<body (optional)>
+
+<footer (optional)>
+```
+
+Types:
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation
+- `style`: Formatting
+- `refactor`: Code restructuring
+- `test`: Testing
+- `chore`: Maintenance
+
+Example:
+```
+feat: Add forgot password functionality
+
+- Added email verification
+- Added reset password link
+- Added token expiration
+
+Fixes #123
+```
+
+### Testing Requirements
+
+Before submitting:
+- [ ] No console errors
+- [ ] All pages load correctly
+- [ ] API endpoints respond correctly
+- [ ] Mobile responsive design works
+- [ ] No security vulnerabilities
+
+### Code Review Process
+
+1. Maintainers review PR
+2. Address feedback if any
+3. Pass all checks
+4. Merge approved PR
+
+---
+
+## 📚 Documentation Index
+
+For comprehensive documentation, refer to these files:
+
+### Getting Started
+
+| File | Description |
+|------|-------------|
+| [README.md](./README.md) | Main project documentation |
+| [QUICK_START.md](./QUICK_START.md) | 5-minute quick start |
+| [THREE_DASHBOARD_SETUP.md](./THREE_DASHBOARD_SETUP.md) | Dashboard testing guide |
+
+### Development
+
+| File | Description |
+|------|-------------|
+| [docs/INSTALLATION.md](./docs/INSTALLATION.md) | Detailed installation |
+| [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md) | Development workflow |
+| [docs/INDEX.md](./docs/INDEX.md) | Documentation index |
+
+### Technical
+
+| File | Description |
+|------|-------------|
+| [docs/API.md](./docs/API.md) | Complete API reference |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System architecture |
+| [docs/DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md) | Database design |
+| [docs/PROJECT_SUMMARY.md](./docs/PROJECT_SUMMARY.md) | Project overview |
+| [docs/REQUIREMENTS.md](./docs/REQUIREMENTS.md) | Requirements |
+
+### Release Notes
+
+| File | Description |
+|------|-------------|
+| [IMPLEMENTATION_COMPLETE.md](./IMPLEMENTATION_COMPLETE.md) | Implementation status |
+| [NEW_FEATURES_SUMMARY.md](./NEW_FEATURES_SUMMARY.md) | New features added |
+
+---
+
+## 📜 License
+
+This project is licensed under the **MIT License**.
+
+### MIT License Terms
+
+- ✅ Free to use
+- ✅ Free to modify
+- ✅ Free for commercial use
+- ✅ Free to distribute
+- ✅ No liability (AS IS)
+- ✅ Must include license notice
+
+See [LICENSE](LICENSE) file for full license text.
+
+---
+
+## 📞 Contact
+
+### Project Maintainer
+
+For questions, issues, or contributions:
+
+- **GitHub Issues:** [Create an issue](https://github.com)
+- **Email:** Contact via GitHub
+
+### Resources
+
+- [React Documentation](https://react.dev)
+- [Express.js Guide](https://expressjs.com)
+- [MongoDB Manual](https://docs.mongodb.com)
+- [Node.js Best Practices](https://github.com/goldbergyoni/nodebestpractices)
+
+---
+
+<div align="center">
+
+**Made with ❤️ for modern barbershops**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-339933?logo=nodedotjs)](https://nodejs.org)
+[![React](https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react)](https://react.dev)
+
+</div>
+

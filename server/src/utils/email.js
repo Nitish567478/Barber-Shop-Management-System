@@ -37,11 +37,20 @@ const sendEmail = async ({ to, subject, text }) => {
 };
 
 const sendWithMailtoFallback = async ({ to, subject, text }) => {
-  console.log('Email transport not configured. Password reset link for manual delivery:');
+  console.log('Email transport not configured. Email content for manual delivery:');
   console.log(`To: ${to}`);
   console.log(`Subject: ${subject}`);
   console.log(text);
 };
+
+const formatEmailDate = (value) =>
+  value
+    ? new Date(value).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'numeric',
+        year: 'numeric',
+      })
+    : 'N/A';
 
 export const sendPasswordResetEmail = async ({ to, resetUrl, userName }) => {
   const { subject, text } = buildEmailContent({ resetUrl, userName });
@@ -57,7 +66,7 @@ export const sendBookingCompletedEmail = async ({ to, userName, shopName, appoin
   sendEmail({
     to,
     subject: 'Your barber booking is completed',
-    text: `Hello ${userName || 'there'},\n\nYour booking at ${shopName || 'Barber Shop'} has been marked completed.\n\nDate: ${appointment?.appointmentDate ? new Date(appointment.appointmentDate).toLocaleDateString() : 'N/A'}\nTime: ${appointment?.appointmentTime || 'N/A'}\n\nThank you for visiting.`,
+    text: `Hello ${userName || 'there'},\n\nYour booking at ${shopName || 'Barber Shop'} has been marked completed.\n\nDate: ${formatEmailDate(appointment?.appointmentDate)}\nTime: ${appointment?.appointmentTime || 'N/A'}\n\nThank you for visiting.`,
   });
 
 export const sendBookingReminderEmail = async ({ to, userName, shopName, appointment }) =>

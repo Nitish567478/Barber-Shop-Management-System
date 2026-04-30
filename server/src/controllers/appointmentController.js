@@ -1,8 +1,11 @@
 import { Appointment } from '../models/Appointment.js';
 import { Service } from '../models/Service.js';
 import { Barber } from '../models/Barber.js';
+import { Coupon } from '../models/Coupon.js';
+import { Invoice } from '../models/Invoice.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { sendBookingCompletedEmail } from '../utils/email.js';
+import { generateInvoiceNumber } from '../utils/helpers.js';
 
 const appointmentPopulate = [
   { path: 'customerId', select: 'name email phone' },
@@ -15,6 +18,7 @@ const appointmentPopulate = [
   },
   { path: 'serviceId', select: 'name price duration category barberId' },
   { path: 'serviceIds', select: 'name price duration category barberId' },
+  { path: 'couponId', select: 'code title discountType discountValue minSpend' },
 ];
 
 const getServiceList = (appointment) => {
@@ -68,6 +72,7 @@ export const createAppointment = async (req, res, next) => {
       notes,
       paymentMethod = 'cash',
       selectedStaffName = '',
+      couponCode = '',
     } = req.body;
 
     if (paymentMethod === 'online') {
@@ -165,6 +170,55 @@ export const createAppointment = async (req, res, next) => {
 
     const totalDuration = services.reduce((sum, service) => sum + (service.duration || 0), 0);
     const totalPrice = services.reduce((sum, service) => sum + (service.price || 0), 0);
+    let finalPrice = totalPrice;
+    let discountAmount = 0;
+    let coupon = null;
+
+    const normalizedCouponCode = String(couponCode || '').trim().toUpperCase();
+    if (normalizedCouponCode) {
+      if (!assignedBarberId) {
+        throw new AppError('Please choose the coupon barber before applying this coupon.', 400);
+      }
+
+      coupon = await Coupon.findOne({
+        barberId: assignedBarberId,
+        code: normalizedCouponCode,
+        isActive: true,
+        validUntil: { $gte: new Date() },
+        $or: [{ validFrom: { $lte: new Date() } }, { validFrom: { $exists: false } }],
+      });
+
+      if (!coupon) {
+        throw new AppError('Coupon is invalid or expired.', 400);
+      }
+
+      if (totalPrice < Number(coupon.minSpend || 0)) {
+        throw new AppError(`Coupon needs a minimum spend of Rs. ${Number(coupon.minSpend || 0).toLocaleString('en-IN')}.`, 400);
+      }
+
+      const isAssigned = coupon.assignedCustomerIds.some(
+        (customerId) => String(customerId) === String(req.user.userId)
+      );
+
+      if (!isAssigned && coupon.audience === 'regular') {
+        const completedCount = await Appointment.countDocuments({
+          customerId: req.user.userId,
+          barberId: assignedBarberId,
+          status: 'completed',
+        });
+
+        if (completedCount < 2) {
+          throw new AppError('This coupon is only for regular customers of this barber.', 403);
+        }
+      }
+
+      discountAmount =
+        coupon.discountType === 'flat'
+          ? Number(coupon.discountValue || 0)
+          : (totalPrice * Number(coupon.discountValue || 0)) / 100;
+      discountAmount = Math.min(totalPrice, Math.max(0, Math.round(discountAmount)));
+      finalPrice = Math.max(0, totalPrice - discountAmount);
+    }
 
     const appointment = new Appointment({
       customerId: req.user.userId,
@@ -174,7 +228,11 @@ export const createAppointment = async (req, res, next) => {
       appointmentDate,
       appointmentTime,
       duration: totalDuration,
-      price: totalPrice,
+      price: finalPrice,
+      originalPrice: totalPrice,
+      discountAmount,
+      couponCode: normalizedCouponCode,
+      couponId: coupon?._id || null,
       notes,
       paymentMethod,
       selectedStaffName,
@@ -325,6 +383,30 @@ export const updateBarberAppointment = async (req, res, next) => {
     }
 
     await appointment.save();
+
+    if (status === 'completed') {
+      const existingInvoice = await Invoice.findOne({ appointmentId: appointment._id });
+      if (existingInvoice) {
+        existingInvoice.amount = appointment.price;
+        existingInvoice.paymentMethod = appointment.paymentMethod || existingInvoice.paymentMethod || 'cash';
+        existingInvoice.paymentStatus = 'completed';
+        await existingInvoice.save();
+      } else if (appointment.barberId) {
+        await Invoice.create({
+          appointmentId: appointment._id,
+          customerId: appointment.customerId,
+          barberId: appointment.barberId,
+          invoiceNumber: generateInvoiceNumber(),
+          amount: appointment.price,
+          paymentMethod: appointment.paymentMethod || 'cash',
+          paymentStatus: 'completed',
+          notes: appointment.couponCode
+            ? `Coupon ${appointment.couponCode} applied. Discount Rs. ${appointment.discountAmount || 0}.`
+            : '',
+        });
+      }
+    }
+
     await appointment.populate(appointmentPopulate);
 
     if (status === 'completed') {

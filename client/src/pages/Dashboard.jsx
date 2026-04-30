@@ -90,9 +90,16 @@ const Dashboard = () => {
         const completed = appointments.filter(
           (apt) => apt.status === 'completed'
         ).length;
-        const totalSpent = invoices
-          .filter((inv) => !inv.paymentStatus || inv.paymentStatus === 'completed')
+        const paidInvoices = invoices.filter((inv) => !inv.paymentStatus || inv.paymentStatus === 'completed');
+        const invoicedAppointmentIds = new Set(
+          paidInvoices.map((inv) => String(inv.appointmentId?._id || inv.appointmentId)).filter(Boolean)
+        );
+        const paidInvoiceTotal = paidInvoices
           .reduce((sum, inv) => sum + (inv.amount || 0), 0);
+        const completedAppointmentTotal = appointments
+          .filter((apt) => apt.status === 'completed' && !invoicedAppointmentIds.has(String(apt._id)))
+          .reduce((sum, apt) => sum + Number(apt.price || 0), 0);
+        const totalSpent = paidInvoiceTotal + completedAppointmentTotal;
 
         setVouchers(nextVouchers);
         setRecentAppointments(appointments.slice(0, 4));
@@ -142,7 +149,7 @@ const Dashboard = () => {
             </div>
           </div>
           <p className="mt-3 text-sm leading-6 text-slate-300">
-            Track appointments, monitor spending, and access your complete grooming account in one place.
+            Track appointments, see how much you have spent so far, and access your complete grooming account in one place.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <span className="rounded-full border border-amber-300/20 bg-amber-400/10 px-4 py-2 text-sm text-amber-200">

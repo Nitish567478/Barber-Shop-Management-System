@@ -149,8 +149,15 @@ const AdminDashboard = () => {
 
   const analytics = useMemo(() => {
     const paidInvoices = invoices.filter((invoice) => invoice.paymentStatus === 'completed');
-    const totalRevenue = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
+    const invoicedAppointmentIds = new Set(
+      paidInvoices.map((invoice) => String(invoice.appointmentId?._id || invoice.appointmentId)).filter(Boolean)
+    );
     const completedAppointments = appointments.filter((appointment) => appointment.status === 'completed');
+    const invoiceRevenue = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
+    const completedRevenueWithoutInvoice = completedAppointments
+      .filter((appointment) => !invoicedAppointmentIds.has(String(appointment._id)))
+      .reduce((sum, appointment) => sum + Number(appointment.price || 0), 0);
+    const totalRevenue = invoiceRevenue + completedRevenueWithoutInvoice;
     const scheduledAppointments = appointments.filter((appointment) => appointment.status === 'scheduled');
     const reviews = appointments.filter((appointment) => appointment.feedback?.submittedAt);
     const averageRating = reviews.length
@@ -196,6 +203,7 @@ const AdminDashboard = () => {
       barberRankings,
       openReports: reports.filter((report) => report.status === 'open').length,
       verifiedReports: reports.filter((report) => report.status === 'verified').length,
+      rejectedReports: reports.filter((report) => report.status === 'rejected').length,
       suspendedBarbers: barbers.filter((barber) => getSuspensionLabel(barber)).length,
     };
   }, [appointments, barbers, invoices, reports]);
@@ -316,7 +324,7 @@ const AdminDashboard = () => {
           <StatCard title="Revenue" value={formatCurrency(analytics.totalRevenue)} helper="Completed paid invoices" icon={IndianRupee} tone="bg-emerald-400/10 text-emerald-200" />
           <StatCard title="Appointments" value={appointments.length} helper={`${analytics.completedAppointments} completed, ${analytics.scheduledAppointments} scheduled`} icon={CalendarCheck} tone="bg-sky-400/10 text-sky-200" />
           <StatCard title="Barbers" value={barbers.length} helper={`${pendingBarbers.length} pending, ${analytics.suspendedBarbers} suspended`} icon={Scissors} tone="bg-violet-400/10 text-violet-200" />
-          <StatCard title="Reports" value={analytics.openReports} helper={`${analytics.verifiedReports} verified actions`} icon={AlertTriangle} tone="bg-rose-400/10 text-rose-200" />
+          <StatCard title="Reports" value={analytics.openReports} helper={`${analytics.verifiedReports} verified, ${analytics.rejectedReports} rejected`} icon={AlertTriangle} tone="bg-rose-400/10 text-rose-200" />
         </section>
 
         {activeView === 'overview' && (
@@ -507,6 +515,7 @@ const AdminDashboard = () => {
               <div className="mt-5 space-y-4">
                 <p className="rounded-2xl bg-slate-950/60 p-4 text-emerald-200">Revenue: {formatCurrency(analytics.totalRevenue)}</p>
                 <p className="rounded-2xl bg-slate-950/60 p-4 text-sky-200">Invoices: {invoices.length}</p>
+                <p className="rounded-2xl bg-slate-950/60 p-4 text-violet-200">Completed booking revenue included even when an invoice is missing.</p>
                 <p className="rounded-2xl bg-slate-950/60 p-4 text-amber-200">Average order: {formatCurrency(analytics.completedAppointments ? analytics.totalRevenue / analytics.completedAppointments : 0)}</p>
               </div>
             </div>
@@ -545,6 +554,21 @@ const AdminDashboard = () => {
                 <Clock className="text-sky-300" />
                 <h3 className="mt-4 font-semibold">Realtime refresh</h3>
                 <p className="mt-2 text-sm text-slate-400">Dashboard refreshes automatically every 25 seconds.</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-5">
+                <IndianRupee className="text-emerald-300" />
+                <h3 className="mt-4 font-semibold">Revenue control</h3>
+                <p className="mt-2 text-sm text-slate-400">Finance view shows paid invoices and completed bookings so website income stays visible.</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-5">
+                <X className="text-amber-300" />
+                <h3 className="mt-4 font-semibold">Reject cleanup</h3>
+                <p className="mt-2 text-sm text-slate-400">Rejected reports remove report action and restore the barber dashboard status.</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-5">
+                <Settings className="text-violet-300" />
+                <h3 className="mt-4 font-semibold">Website controls</h3>
+                <p className="mt-2 text-sm text-slate-400">Use this area for shop approvals, booking rules, coupon policy, homepage content, and support messages.</p>
               </div>
             </div>
           </section>

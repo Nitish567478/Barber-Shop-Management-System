@@ -88,7 +88,6 @@ const BarberDashboard = () => {
   const [bookings, setBookings] = useState([]);
   const [coupons, setCoupons] = useState([]);
   const [regularCustomers, setRegularCustomers] = useState([]);
-  const [bookingFilter, setBookingFilter] = useState('all');
   const [detailBooking, setDetailBooking] = useState(null);
   const [profileForm, setProfileForm] = useState({
     shopName: '',
@@ -110,6 +109,10 @@ const BarberDashboard = () => {
   const [savingCoupon, setSavingCoupon] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const jumpToSection = (sectionId) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const syncProfileForm = (nextProfile) => {
     setProfileForm({
@@ -327,14 +330,14 @@ const BarberDashboard = () => {
 
   const scheduledBookings = bookings.filter((booking) => booking.status === 'scheduled');
   const completedBookings = bookings.filter((booking) => booking.status === 'completed');
-  const todayBookings = bookings.filter((booking) => isSameDay(booking.appointmentDate));
   const sortedBookings = [...bookings].sort(
-    (a, b) => new Date(a.createdAt || a.appointmentDate) - new Date(b.createdAt || b.appointmentDate)
+    (a, b) => {
+      const createdDiff = new Date(a.createdAt || a.appointmentDate) - new Date(b.createdAt || b.appointmentDate);
+      if (createdDiff !== 0) return createdDiff;
+      return String(a._id || '').localeCompare(String(b._id || ''));
+    }
   );
-  const visibleBookings =
-    bookingFilter === 'today'
-      ? sortedBookings.filter((booking) => isSameDay(booking.appointmentDate))
-      : sortedBookings;
+  const todayBookings = sortedBookings.filter((booking) => isSameDay(booking.appointmentDate));
   const reviews = bookings.filter((booking) => booking.feedback?.submittedAt);
   const averageRating = reviews.length
     ? reviews.reduce((sum, booking) => sum + Number(booking.feedback?.rating || 0), 0) / reviews.length
@@ -352,6 +355,81 @@ const BarberDashboard = () => {
     { label: 'Revenue', value: formatCurrency(totalRevenue), tone: 'text-rose-200' },
     { label: 'Rating', value: reviews.length ? `${averageRating.toFixed(1)}/5` : 'No reviews', tone: 'text-amber-200' },
   ];
+  const quickButtons = [
+    { label: 'Service Price', sectionId: 'service-price-panel', helper: `${services.length} services` },
+    { label: 'Launch Coupon', sectionId: 'coupon-panel', helper: `${coupons.length} coupons` },
+    { label: 'Customer Feedback', sectionId: 'feedback-panel', helper: `${reviews.length} reviews` },
+    { label: 'Customer Booking', sectionId: 'booking-panel', helper: `${bookings.length} bookings` },
+  ];
+
+  const renderBookingCard = (booking, index, labelPrefix = '#') => (
+    <div key={booking._id} className="rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-5">
+      <div className="grid gap-4 lg:grid-cols-[auto_1.2fr_1fr_auto] lg:items-start">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-400/10 font-semibold text-amber-100">
+          {labelPrefix}{index + 1}
+        </div>
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="text-xl font-semibold text-white">{booking.customerId?.name || 'Customer'}</h3>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-slate-300">
+              {booking.status}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-slate-300">{booking.customerId?.phone || 'No phone available'}</p>
+          <p className="mt-4 text-sm text-slate-400">Service</p>
+          <p className="text-base font-medium text-slate-100">
+            {booking.serviceIds?.length
+              ? booking.serviceIds.map((service) => service.name).join(', ')
+              : booking.serviceId?.name || 'Service removed'}
+          </p>
+          <p className="mt-2 text-sm text-slate-400">Date and time</p>
+          <p className="text-base font-medium text-slate-100">{formatDate(booking.appointmentDate)} at {booking.appointmentTime}</p>
+          <p className="mt-2 text-sm text-slate-400">Booked on</p>
+          <p className="text-base font-medium text-slate-100">{formatDateTime(booking.createdAt)}</p>
+          <p className="mt-2 text-sm text-slate-400">Price</p>
+          <p className="text-base font-medium text-amber-200">{formatCurrency(booking.price)}</p>
+          {booking.couponCode && (
+            <p className="mt-2 text-sm text-emerald-200">
+              Coupon {booking.couponCode}: {formatCurrency(booking.discountAmount)} discount
+            </p>
+          )}
+          {booking.notes && (
+            <p className="mt-4 text-sm leading-6 text-slate-300">Notes: {booking.notes}</p>
+          )}
+        </div>
+
+        <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+          <p className="text-slate-400">Duration</p>
+          <p className="mt-1 text-base font-medium text-white">{booking.duration} mins</p>
+          <p className="mt-4 text-slate-400">Customer Email</p>
+          <p className="mt-1 break-all text-base font-medium text-white">{booking.customerId?.email || 'N/A'}</p>
+        </div>
+
+        <div className="flex flex-wrap gap-3 lg:flex-col">
+          <button onClick={() => setDetailBooking(booking)} className="theme-secondary-btn text-sm">
+            Detail
+          </button>
+          {booking.status === 'scheduled' ? (
+            <>
+              <button onClick={() => handleBookingStatus(booking._id, 'completed')} className="theme-primary-btn text-sm">
+                Mark Completed
+              </button>
+              <button onClick={() => handleBookingStatus(booking._id, 'cancelled')} className="theme-danger-btn text-sm">
+                Cancel Booking
+              </button>
+              <button onClick={() => handleBookingStatus(booking._id, 'no-show')} className="theme-secondary-btn text-sm">
+                Mark No-Show
+              </button>
+            </>
+          ) : (
+            <span className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm font-semibold capitalize text-slate-200">
+              {booking.status}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="theme-page">
@@ -391,14 +469,28 @@ const BarberDashboard = () => {
           </div>
         )}
 
+        <div className="mb-8 grid gap-3 md:grid-cols-4">
+          {quickButtons.map((button) => (
+            <button
+              key={button.sectionId}
+              type="button"
+              onClick={() => jumpToSection(button.sectionId)}
+              className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-5 py-4 text-left transition hover:border-amber-300/40 hover:bg-amber-400/15"
+            >
+              <span className="block font-semibold text-amber-100">{button.label}</span>
+              <span className="mt-1 block text-sm text-slate-400">{button.helper}</span>
+            </button>
+          ))}
+        </div>
+
         <div className="mb-8 grid gap-6 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
           {statCards.map((card) => (
             <button
               key={card.label}
               type="button"
               onClick={() => {
-                if (card.label === "Today's Bookings") setBookingFilter('today');
-                if (card.label === 'Total Bookings') setBookingFilter('all');
+                if (card.label === "Today's Bookings") jumpToSection('today-bookings-panel');
+                if (card.label === 'Total Bookings') jumpToSection('booking-panel');
               }}
               className="theme-card text-left"
             >
@@ -514,7 +606,7 @@ const BarberDashboard = () => {
           </section>
         </div>
 
-        <section className="theme-card mt-8">
+        <section id="service-price-panel" className="theme-card mt-8 scroll-mt-24">
           <div className="mb-6 border-b border-white/10 pb-4">
             <h2 className="text-2xl font-semibold text-white">Service Pricing</h2>
             <p className="mt-2 text-sm text-slate-400">
@@ -565,7 +657,7 @@ const BarberDashboard = () => {
           </form>
         </section>
 
-        <section className="theme-card mt-8">
+        <section id="coupon-panel" className="theme-card mt-8 scroll-mt-24">
           <div className="mb-6 border-b border-white/10 pb-4">
             <h2 className="text-2xl font-semibold text-white">Launch Coupon</h2>
             <p className="mt-2 text-sm text-slate-400">
@@ -642,7 +734,7 @@ const BarberDashboard = () => {
           )}
         </section>
 
-        <section className="theme-card mt-8">
+        <section id="feedback-panel" className="theme-card mt-8 scroll-mt-24">
           <div className="mb-6 flex flex-col gap-3 border-b border-white/10 pb-4 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-2xl font-semibold text-white">Customer Feedback</h2>
@@ -687,7 +779,7 @@ const BarberDashboard = () => {
           )}
         </section>
 
-        <section className="theme-card mt-8">
+        <section id="service-list-panel" className="theme-card mt-8 scroll-mt-24">
           <div className="mb-6 flex flex-col gap-3 border-b border-white/10 pb-4 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-2xl font-semibold text-white">Your Services</h2>
@@ -731,7 +823,7 @@ const BarberDashboard = () => {
           )}
         </section>
 
-        <section className="theme-card mt-8">
+        <section id="booking-panel" className="theme-card mt-8 scroll-mt-24">
           <div className="mb-6 border-b border-white/10 pb-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
@@ -756,73 +848,47 @@ const BarberDashboard = () => {
             </p>
           </div>
 
-          {bookings.length === 0 ? (
-            <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-white/5 p-6 text-center text-slate-400">
-              No bookings received yet.
+          <div id="today-bookings-panel" className="scroll-mt-24 rounded-[1.5rem] border border-cyan-300/20 bg-cyan-400/5 p-5">
+            <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-cyan-100">Today's Bookings</h3>
+                <p className="mt-1 text-sm text-slate-400">Aaj ki bookings bhi FIFO order mein update hoti rahengi.</p>
+              </div>
+              <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100">
+                {todayBookings.length} today
+              </span>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {visibleBookings.map((booking, index) => (
-                <div key={booking._id} className="rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-5">
-                  <div className="grid gap-4 lg:grid-cols-[auto_1.2fr_1fr_auto] lg:items-start">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-400/10 font-semibold text-amber-100">
-                      #{index + 1}
-                    </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <h3 className="text-xl font-semibold text-white">{booking.customerId?.name || 'Customer'}</h3>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-slate-300">
-                          {booking.status}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm text-slate-300">{booking.customerId?.phone || 'No phone available'}</p>
-                      <p className="mt-4 text-sm text-slate-400">Service</p>
-                      <p className="text-base font-medium text-slate-100">{booking.serviceId?.name || 'Service removed'}</p>
-                      <p className="mt-2 text-sm text-slate-400">Date and time</p>
-                      <p className="text-base font-medium text-slate-100">{formatDate(booking.appointmentDate)} at {booking.appointmentTime}</p>
-                      <p className="mt-2 text-sm text-slate-400">Booked on</p>
-                      <p className="text-base font-medium text-slate-100">{formatDateTime(booking.createdAt)}</p>
-                      <p className="mt-2 text-sm text-slate-400">Price</p>
-                      <p className="text-base font-medium text-amber-200">{formatCurrency(booking.price)}</p>
-                      {booking.notes && (
-                        <p className="mt-4 text-sm leading-6 text-slate-300">Notes: {booking.notes}</p>
-                      )}
-                    </div>
+            {todayBookings.length === 0 ? (
+              <div className="rounded-[1.25rem] border border-dashed border-cyan-300/20 bg-slate-950/40 p-5 text-center text-slate-400">
+                No bookings for today.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {todayBookings.map((booking, index) => renderBookingCard(booking, index, 'T'))}
+              </div>
+            )}
+          </div>
 
-                    <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-                      <p className="text-slate-400">Duration</p>
-                      <p className="mt-1 text-base font-medium text-white">{booking.duration} mins</p>
-                      <p className="mt-4 text-slate-400">Customer Email</p>
-                      <p className="mt-1 break-all text-base font-medium text-white">{booking.customerId?.email || 'N/A'}</p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3 lg:flex-col">
-                      <button onClick={() => setDetailBooking(booking)} className="theme-secondary-btn text-sm">
-                        Detail
-                      </button>
-                      {booking.status === 'scheduled' ? (
-                        <>
-                        <button onClick={() => handleBookingStatus(booking._id, 'completed')} className="theme-primary-btn text-sm">
-                          Mark Completed
-                        </button>
-                        <button onClick={() => handleBookingStatus(booking._id, 'cancelled')} className="theme-danger-btn text-sm">
-                          Cancel Booking
-                        </button>
-                        <button onClick={() => handleBookingStatus(booking._id, 'no-show')} className="theme-secondary-btn text-sm">
-                          Mark No-Show
-                        </button>
-                        </>
-                      ) : (
-                        <span className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm font-semibold capitalize text-slate-200">
-                          {booking.status}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+          <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5">
+            <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-white">FIFO Customer Queue</h3>
+                <p className="mt-1 text-sm text-slate-400">Sabhi bookings oldest request se newest request tak dikhengi.</p>
+              </div>
+              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
+                {sortedBookings.length} total
+              </span>
             </div>
-          )}
+            {sortedBookings.length === 0 ? (
+              <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-white/5 p-6 text-center text-slate-400">
+                No bookings received yet.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {sortedBookings.map((booking, index) => renderBookingCard(booking, index))}
+              </div>
+            )}
+          </div>
         </section>
 
         {detailBooking && (
@@ -841,7 +907,10 @@ const BarberDashboard = () => {
                 <p>Phone: {detailBooking.customerId?.phone || 'N/A'}</p>
                 <p>Date: {formatDate(detailBooking.appointmentDate)} at {detailBooking.appointmentTime}</p>
                 <p>Duration: {detailBooking.duration} mins</p>
-                <p>Amount: {formatCurrency(detailBooking.price)}</p>
+                <p>Original amount: {formatCurrency(detailBooking.originalPrice || detailBooking.price)}</p>
+                <p>Discount: {formatCurrency(detailBooking.discountAmount)}</p>
+                <p>Payable amount: {formatCurrency(detailBooking.price)}</p>
+                <p>Coupon: {detailBooking.couponCode || 'No coupon used'}</p>
                 <p>Staff: {detailBooking.selectedStaffName || 'Any available staff'}</p>
                 <p>Notes: {detailBooking.notes || 'No notes'}</p>
               </div>

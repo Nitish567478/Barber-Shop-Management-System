@@ -13,6 +13,7 @@ import AppLayout from "./components/AppLayout";
 import CookieBanner from "./components/CookieBanner";
 import NotFound from "./components/NotFound";
 import BarberShopLoader from "./components/BarberShopLoader";
+import OfflineNotice from "./components/OfflineNotice";
 
 /* ===================================================
    LAZY PAGE IMPORTS
@@ -62,6 +63,7 @@ function App() {
     <Router>
       <AuthProvider>
         <CookieBanner />
+        <OfflineNotice />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* MAIN LAYOUT */}

@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { appointmentsAPI, barbersAPI, servicesAPI } from '../services/api';
+import { appointmentsAPI, barbersAPI, couponsAPI, servicesAPI } from '../services/api';
 import { isValidObjectId } from '../utils/objectId';
-import BarberShopeLoader from "./components/BarberShopeLoader";
+import BarberShopLoader from "../components/BarberShopLoader";
+
+const formatCurrency = (value) => `Rs. ${Number(value || 0).toLocaleString('en-IN')}`;
+
 const BookAppointment = () => {
   const { user } = useAuth();
   const location = useLocation();
@@ -16,9 +19,11 @@ const BookAppointment = () => {
     notes: '',
     paymentMethod: 'cash',
     selectedStaffName: '',
+    couponCode: '',
   });
   const [barbers, setBarbers] = useState([]);
   const [services, setServices] = useState([]);
+  const [vouchers, setVouchers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -32,18 +37,22 @@ const BookAppointment = () => {
     const fetchData = async () => {
       setDataWarning('');
 
-      const [barbersResult, servicesResult] = await Promise.allSettled([
+      const [barbersResult, servicesResult, vouchersResult] = await Promise.allSettled([
         barbersAPI.getAll(),
         servicesAPI.getAll(),
+        couponsAPI.getMyVouchers(),
       ]);
 
       const nextBarbers =
         barbersResult.status === 'fulfilled' ? barbersResult.value.data.barbers || [] : [];
       const nextServices =
         servicesResult.status === 'fulfilled' ? servicesResult.value.data.services || [] : [];
+      const nextVouchers =
+        vouchersResult.status === 'fulfilled' ? vouchersResult.value.data.coupons || [] : [];
 
       setBarbers(nextBarbers);
       setServices(nextServices);
+      setVouchers(nextVouchers);
       setFormData((prev) => ({
         ...prev,
         barberId: isValidObjectId(location.state?.selectedBarberId)
@@ -83,6 +92,25 @@ const BookAppointment = () => {
   const totalPrice = selectedServices.reduce((sum, service) => sum + (service.price || 0), 0);
   const totalDuration = selectedServices.reduce((sum, service) => sum + (service.duration || 0), 0);
   const staffOptions = selectedBarber?.staffMembers || [];
+  const normalizedCouponCode = formData.couponCode.trim().toUpperCase();
+  const selectedVoucher = normalizedCouponCode
+    ? vouchers.find((voucher) => {
+        const voucherBarberId = voucher.barberId?._id || voucher.barberId;
+        return (
+          voucher.code === normalizedCouponCode &&
+          (!formData.barberId || String(voucherBarberId) === String(formData.barberId))
+        );
+      })
+    : null;
+  const couponDiscount = selectedVoucher && totalPrice >= Number(selectedVoucher.minSpend || 0)
+    ? Math.min(
+        totalPrice,
+        selectedVoucher.discountType === 'flat'
+          ? Number(selectedVoucher.discountValue || 0)
+          : Math.round((totalPrice * Number(selectedVoucher.discountValue || 0)) / 100)
+      )
+    : 0;
+  const payableAmount = Math.max(0, totalPrice - couponDiscount);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -151,6 +179,7 @@ const BookAppointment = () => {
         notes: '',
         paymentMethod: 'cash',
         selectedStaffName: '',
+        couponCode: '',
       });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to book appointment');
@@ -160,7 +189,7 @@ const BookAppointment = () => {
   };
 
   if(!loading && barbers.length === 0 && services.length === 0){
-    return <BarberShopeLoader />
+    return <BarberShopLoader />
   }
 
   return (
@@ -313,6 +342,30 @@ const BookAppointment = () => {
             </div>
 
             <div className="mb-6">
+              <label className="mb-2 block text-sm font-medium text-slate-200">Coupon Code</label>
+              <input
+                name="couponCode"
+                value={formData.couponCode}
+                onChange={handleChange}
+                className="theme-input uppercase"
+                placeholder="Enter barber coupon code"
+              />
+              <p className="mt-2 text-xs text-slate-400">
+                Use the same coupon code your barber generated for you. Discount will apply after validation.
+              </p>
+              {normalizedCouponCode && selectedVoucher && (
+                <p className="mt-2 rounded-2xl border border-emerald-300/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+                  Coupon applied: {formatCurrency(couponDiscount)} discount.
+                </p>
+              )}
+              {normalizedCouponCode && !selectedVoucher && (
+                <p className="mt-2 rounded-2xl border border-amber-300/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                  Coupon will be checked while booking. Select the same barber who issued this coupon.
+                </p>
+              )}
+            </div>
+
+            <div className="mb-6">
               <label className="mb-2 block text-sm font-medium text-slate-200">Notes</label>
               <textarea
                 name="notes"
@@ -327,7 +380,9 @@ const BookAppointment = () => {
             <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
               <p>Total services: {selectedServices.length}</p>
               <p className="mt-1">Total duration: {totalDuration} mins</p>
-              <p className="mt-1">Total amount: Rs. {totalPrice}</p>
+              <p className="mt-1">Original amount: {formatCurrency(totalPrice)}</p>
+              <p className="mt-1">Coupon discount: {formatCurrency(couponDiscount)}</p>
+              <p className="mt-1 font-semibold text-emerald-200">Payable amount: {formatCurrency(payableAmount)}</p>
               {selectedBarber && (
                 <p className="mt-1">
                   Slot limit for this shop: {selectedBarber.slotCapacity || 3} booking(s) per time slot

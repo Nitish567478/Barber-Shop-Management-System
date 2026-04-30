@@ -123,6 +123,16 @@ export const verifyReport = async (req, res, next) => {
       });
     }
 
+    if (status === 'rejected') {
+      report.suspendedDays = 0;
+      report.verifiedAt = null;
+      await Barber.findByIdAndUpdate(report.barberId, {
+        isActive: true,
+        suspendedUntil: null,
+        suspensionReason: '',
+      });
+    }
+
     await report.save();
     await report.populate(reportPopulate);
 

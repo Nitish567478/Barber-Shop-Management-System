@@ -64,6 +64,27 @@ const appointmentSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    originalPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    discountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    couponCode: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: '',
+    },
+    couponId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Coupon',
+      default: null,
+    },
     feedback: {
       rating: {
         type: Number,

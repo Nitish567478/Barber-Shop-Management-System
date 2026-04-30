@@ -1,12 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import BarberShopeLoader from "./components/BarberShopeLoader";
+import BarberShopLoader from "../components/BarberShopLoader";
 
-if(!loading){
-  return <BarberShopeLoader />
-}
 
-const AboutUs = () => {
+const AboutUs = ({loading}) => {
+
+  if(loading){
+    <p> <BarberShopLoader /> </p>
+  }
+
   const stats = [
     { value: '5000+', label: 'Happy Customers' },
     { value: '15+', label: 'Expert Barbers' },
