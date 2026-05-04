@@ -69,6 +69,13 @@ export const sendBookingCompletedEmail = async ({ to, userName, shopName, appoin
     text: `Hello ${userName || 'there'},\n\nYour booking at ${shopName || 'Barber Shop'} has been marked completed.\n\nDate: ${formatEmailDate(appointment?.appointmentDate)}\nTime: ${appointment?.appointmentTime || 'N/A'}\n\nThank you for visiting.`,
   });
 
+export const sendBookingConfirmationEmail = async ({ to, userName, shopName, appointment }) =>
+  sendEmail({
+    to,
+    subject: 'Your barber booking is confirmed',
+    text: `Hello ${userName || 'there'},\n\nYour booking at ${shopName || 'Barber Shop'} is confirmed.\n\nDate: ${formatEmailDate(appointment?.appointmentDate)}\nTime: ${appointment?.appointmentTime || 'N/A'}\n\nPlease arrive on time.`,
+  });
+
 export const sendBookingReminderEmail = async ({ to, userName, shopName, appointment }) =>
   sendEmail({
     to,

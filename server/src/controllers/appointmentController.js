@@ -4,8 +4,8 @@ import { Barber } from '../models/Barber.js';
 import { Coupon } from '../models/Coupon.js';
 import { Invoice } from '../models/Invoice.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { sendBookingCompletedEmail } from '../utils/email.js';
 import { generateInvoiceNumber } from '../utils/helpers.js';
+import { sendNotification } from '../utils/notifications.js';
 
 const appointmentPopulate = [
   { path: 'customerId', select: 'name email phone' },
@@ -241,6 +241,13 @@ export const createAppointment = async (req, res, next) => {
     await appointment.save();
     await appointment.populate(appointmentPopulate);
 
+    await sendNotification({
+      type: 'confirmation',
+      user: req.user,
+      shopName: barberProfile?.shopName || 'Barber Shop',
+      appointment,
+    });
+
     res.status(201).json({
       success: true,
       message: 'Appointment booked successfully',
@@ -410,10 +417,10 @@ export const updateBarberAppointment = async (req, res, next) => {
     await appointment.populate(appointmentPopulate);
 
     if (status === 'completed') {
-      await sendBookingCompletedEmail({
-        to: appointment.customerId?.email,
-        userName: appointment.customerId?.name,
-        shopName: appointment.barberId?.shopName,
+      await sendNotification({
+        type: 'completed',
+        user: appointment.customerId || {},
+        shopName: appointment.barberId?.shopName || 'Barber Shop',
         appointment,
       });
     }

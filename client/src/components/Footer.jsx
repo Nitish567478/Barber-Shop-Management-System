@@ -11,20 +11,34 @@ const Footer = () => {
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
         {/* BRAND */}
 
-        <div>
+        <div className="max-w-xl">
+
+          {/* Top Label */}
           <p className="text-xs uppercase tracking-[0.45em] text-amber-400">
             Barber Shop
           </p>
 
-          <h2 className="mt-3 text-2xl font-semibold text-white">
+          {/* Logo */}
+          <div className="mt-4">
+            <img 
+              src="https://i.ibb.co/0yYptF9d/website-logo.png" 
+              alt="Premium Barber Shop Logo"
+              className="h-[60px] w-auto object-contain rounded-xl border border-amber-400/30 shadow-md"
+            />
+          </div>
+
+          {/* Heading */}
+          <h2 className="mt-5 text-3xl font-semibold text-white leading-tight">
             Modern Grooming Studio
           </h2>
 
+          {/* Description */}
           <p className="mt-4 text-sm leading-7 text-slate-400">
             Professional haircuts, beard styling,
             premium grooming and easy online booking
             for modern customers.
           </p>
+
         </div>
 
         {/* QUICK LINKS */}
@@ -37,35 +51,35 @@ const Footer = () => {
           <div className="mt-5 flex flex-col gap-3 text-sm">
             <Link
               to="/"
-              className="hover:text-white transition"
+              className="hover:text-yellow-500 transition"
             >
               Home
             </Link>
 
             <Link
               to="/services"
-              className="hover:text-white transition"
+              className="hover:text-yellow-500 transition"
             >
               Services
             </Link>
 
             <Link
               to="/barbers"
-              className="hover:text-white transition"
+              className="hover:text-yellow-500 transition"
             >
               Barbers
             </Link>
 
             <Link
               to="/about"
-              className="hover:text-white transition"
+              className="hover:text-yellow-500 transition"
             >
               About
             </Link>
 
             <Link
               to="/help"
-              className="hover:text-white transition"
+              className="hover:text-yellow-500 transition"
             >
               Help & Support
             </Link>
@@ -82,14 +96,14 @@ const Footer = () => {
           <div className="mt-5 flex flex-col gap-3 text-sm">
             <Link
               to="/terms-conditions"
-              className="hover:text-white transition"
+              className="hover:text-yellow-500 transition"
             >
               Terms & Conditions
             </Link>
 
             <Link
               to="/privacy-policy"
-              className="hover:text-white transition"
+              className="hover:text-yellow-500 transition"
             >
               Privacy Policy
             </Link>
@@ -109,7 +123,7 @@ const Footer = () => {
                 href="https://maps.google.com/?q=Ranchi,Jharkhand,India"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="transition hover:text-white"
+                className="transition hover:text-yellow-500"
               >
                 Ranchi, Jharkhand, India
               </a>
@@ -118,7 +132,7 @@ const Footer = () => {
             <p>
               <a
                 href="tel:+919934630687"
-                className="transition hover:text-white"
+                className="transition hover:text-yellow-500"
               >
                 Phone: +91 9934630687
               </a>
@@ -127,7 +141,7 @@ const Footer = () => {
             <p>
               <a
                 href="mailto:support@barbershop.com"
-                className="transition hover:text-white"
+                className="transition hover:text-yellow-500"
               >
                 support@barbershop.com
               </a>
@@ -136,7 +150,7 @@ const Footer = () => {
             <p>
               <a
                 href="/contact"
-                className="transition hover:text-white"
+                className="transition hover:text-yellow-500"
               >
                 Open Daily: 9 AM - 10 PM
               </a>

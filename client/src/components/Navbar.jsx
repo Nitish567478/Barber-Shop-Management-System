@@ -2,21 +2,12 @@ import React, { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-/* ===========================================
-   NAV LINKS
-   About removed to avoid deleted route error
-=========================================== */
-
 const navLinks = [
   { to: "/", label: "Home" },
   { to: "/services", label: "Services" },
   { to: "/barbers", label: "Barbers" },
   { to: "/help", label: "Help" },
 ];
-
-/* ===========================================
-   DESKTOP LINK STYLE
-=========================================== */
 
 const navLinkClass = ({ isActive }) =>
   `rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-300 ${
@@ -32,26 +23,14 @@ function Navbar() {
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  /* ===========================================
-     CLOSE MOBILE MENU ON ROUTE CHANGE
-  =========================================== */
-
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
-
-  /* ===========================================
-     LOGOUT
-  =========================================== */
 
   const handleLogout = () => {
     logout();
     navigate("/");
   };
-
-  /* ===========================================
-     SHOW DASHBOARD BUTTON
-  =========================================== */
 
   const showDashboard =
     Boolean(user) &&
@@ -64,15 +43,19 @@ function Navbar() {
 
         <div className="flex items-center justify-between gap-4 rounded-[1.7rem] border border-white/10 bg-white/[0.03] px-4 py-3 shadow-xl shadow-black/20">
           {/* LOGO */}
-
           <button
             onClick={() => navigate("/")}
-            className="flex min-w-0 items-center gap-3 text-left transition-all duration-300 hover:-translate-y-0.5"
+            className="flex items-center gap-3 text-left transition-all duration-300 hover:-translate-y-0.5"
           >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 via-amber-400 to-orange-300 font-bold text-slate-950 shadow-lg shadow-amber-500/20">
-              BS
-            </span>
 
+            {/* Logo */}
+            <img 
+              src="https://i.ibb.co/0yYptF9d/website-logo.png" 
+              alt="Premium Barber Shop Logo"
+              className="h-[50px] w-auto object-contain rounded-xl border border-amber-400/30 shadow-md transition-all duration-300 hover:shadow-amber-500/40 hover:scale-105"
+            />
+
+            {/* Text */}
             <span className="min-w-0">
               <p className="truncate text-[10px] uppercase tracking-[0.35em] text-amber-400 sm:text-[11px]">
                 Premium Barber Shop
@@ -82,6 +65,7 @@ function Navbar() {
                 Modern Grooming Studio
               </h1>
             </span>
+
           </button>
 
           {/* DESKTOP LINKS */}
