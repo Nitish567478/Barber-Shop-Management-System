@@ -1,33 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import {
-  appointmentsAPI,
-  barbersAPI,
-  invoicesAPI,
-  reportsAPI,
-  servicesAPI,
-} from '../services/api';
-import {
-  AlertTriangle,
-  Award,
-  CalendarCheck,
-  Clock,
-  Eye,
-  IndianRupee,
-  Loader2,
-  Mail,
-  Moon,
-  Phone,
-  Scissors,
-  Search,
-  Settings,
-  ShieldCheck,
-  Star,
-  Sun,
-  Sunrise,
-  TrendingUp,
-  X,
-} from 'lucide-react';
+import { appointmentsAPI, barbersAPI, invoicesAPI, reportsAPI, servicesAPI, } from '../services/api';
+import { AlertTriangle, Award, CalendarCheck, Clock,  Eye, IndianRupee, Loader2, Mail, Moon, Phone, Scissors, Search, Settings, ShieldCheck, Star, Sun, Sunrise, TrendingUp, X, } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';

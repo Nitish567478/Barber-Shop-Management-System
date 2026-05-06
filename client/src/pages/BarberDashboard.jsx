@@ -25,8 +25,7 @@ const emptyCouponForm = {
   assignedCustomerIds: [],
 };
 
-const defaultShopPreview =
-  'https://images.unsplash.com/photo-1512690459411-b0fd1c86b8c8?auto=format&fit=crop&w=1200&q=80';
+const defaultShopPreview = 'https://images.unsplash.com/photo-1512690459411-b0fd1c86b8c8?auto=format&fit=crop&w=1200&q=80';
 
 const formatCurrency = (value) => `Rs. ${Number(value || 0)}`;
 const formatDate = (value) => new Date(value).toLocaleDateString();
