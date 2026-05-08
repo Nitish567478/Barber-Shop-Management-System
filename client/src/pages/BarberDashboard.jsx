@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { appointmentsAPI, barbersAPI, couponsAPI, servicesAPI } from '../services/api';
-import { Star, X } from 'lucide-react';
+import { Power, Star, X } from 'lucide-react';
 
 import BarberShopLoader from '../components/BarberShopLoader';
 
@@ -27,6 +27,7 @@ const emptyCouponForm = {
 
 const defaultShopPreview = 'https://images.unsplash.com/photo-1512690459411-b0fd1c86b8c8?auto=format&fit=crop&w=1200&q=80';
 
+const PAGE_SIZE = 10;
 const formatCurrency = (value) => `Rs. ${Number(value || 0)}`;
 const formatDate = (value) => new Date(value).toLocaleDateString();
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : 'N/A');
@@ -98,6 +99,7 @@ const BarberDashboard = () => {
     openingTime: '09:00',
     closingTime: '18:00',
     isActive: true,
+    isOpen: true,
   });
   const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [couponForm, setCouponForm] = useState(emptyCouponForm);
@@ -108,6 +110,7 @@ const BarberDashboard = () => {
   const [savingCoupon, setSavingCoupon] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [bookingPage, setBookingPage] = useState(1);
 
   const jumpToSection = (sectionId) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -124,6 +127,7 @@ const BarberDashboard = () => {
       openingTime: nextProfile.openingTime || '09:00',
       closingTime: nextProfile.closingTime || '18:00',
       isActive: nextProfile.isActive !== false,
+      isOpen: nextProfile.isOpen !== false,
     });
   };
 
@@ -213,6 +217,20 @@ const BarberDashboard = () => {
       setError(err.response?.data?.message || 'Failed to update barber profile');
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleShopOpenToggle = async () => {
+    try {
+      clearBanner();
+      const nextIsOpen = !(profile?.isOpen !== false);
+      const response = await barbersAPI.updateMine({ isOpen: nextIsOpen });
+      const nextProfile = response.data.barber;
+      setProfile(nextProfile);
+      syncProfileForm(nextProfile);
+      setSuccess(nextIsOpen ? 'Shop is open for bookings.' : 'Shop is closed for new bookings.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update shop status');
     }
   };
 
@@ -321,7 +339,7 @@ const BarberDashboard = () => {
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <div className="text-center">
           <div className="loading loading-spinner loading-lg text-amber-400"></div>
-          <p className="mt-4 text-sm uppercase tracking-[0.35em] text-slate-300"><BarberShopLoader /></p>
+          <div className="mt-4 text-sm uppercase tracking-[0.35em] text-slate-300"><BarberShopLoader /></div>
         </div>
       </div>
     );
@@ -335,6 +353,12 @@ const BarberDashboard = () => {
       if (createdDiff !== 0) return createdDiff;
       return String(a._id || '').localeCompare(String(b._id || ''));
     }
+  );
+  const totalBookingPages = Math.max(1, Math.ceil(sortedBookings.length / PAGE_SIZE));
+  const currentBookingPage = Math.min(bookingPage, totalBookingPages);
+  const paginatedBookings = sortedBookings.slice(
+    (currentBookingPage - 1) * PAGE_SIZE,
+    currentBookingPage * PAGE_SIZE
   );
   const todayBookings = sortedBookings.filter((booking) => isSameDay(booking.appointmentDate));
   const reviews = bookings.filter((booking) => booking.feedback?.submittedAt);
@@ -451,6 +475,18 @@ const BarberDashboard = () => {
             <span className="rounded-full border border-sky-300/20 bg-sky-400/10 px-4 py-2 text-sky-200">
               {formatHours(profile?.openingTime, profile?.closingTime)}
             </span>
+            <button
+              type="button"
+              onClick={handleShopOpenToggle}
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 transition ${
+                profile?.isOpen !== false
+                  ? 'border-emerald-300/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15'
+                  : 'border-red-300/30 bg-red-500/10 text-red-200 hover:bg-red-500/15'
+              }`}
+            >
+              <Power size={16} />
+              {profile?.isOpen !== false ? 'Open' : 'Closed'}
+            </button>
           </div>
         </div>
 
@@ -560,6 +596,10 @@ const BarberDashboard = () => {
                 <input type="checkbox" name="isActive" checked={profileForm.isActive} onChange={handleProfileChange} disabled={Boolean(suspensionLabel)} />
                 Accept new customer bookings
               </label>
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 md:col-span-2">
+                <input type="checkbox" name="isOpen" checked={profileForm.isOpen} onChange={handleProfileChange} />
+                Shop open today
+              </label>
               <div className="md:col-span-2">
                 <button type="submit" disabled={savingProfile} className="theme-primary-btn w-full md:w-auto">
                   {savingProfile ? 'Saving profile...' : 'Publish Shop Profile'}
@@ -633,14 +673,30 @@ const BarberDashboard = () => {
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-200">Category</label>
-                <select name="category" value={serviceForm.category} onChange={handleServiceChange} className="theme-select">
-                  <option value="haircut">Haircut</option>
-                  <option value="shaving">Shaving</option>
-                  <option value="coloring">Coloring</option>
-                  <option value="treatment">Treatment</option>
-                  <option value="grooming">Grooming</option>
-                  <option value="other">Other</option>
-                </select>
+                <select
+    name="category"
+    value={serviceForm.category}
+    onChange={handleServiceChange}
+    className="theme-select"
+  >
+    <option value="haircut">Haircut</option>
+    <option value="shaving">Shaving</option>
+    <option value="coloring">Coloring</option>
+    <option value="treatment">Treatment</option>
+    <option value="grooming">Grooming</option>
+    <option value="other">Other</option>
+  </select>
+
+  {serviceForm.category === "other" && (
+    <input
+      type="text"
+      name="customCategory"
+      placeholder="Enter custom category"
+      value={serviceForm.customCategory || ""}
+      onChange={handleServiceChange}
+      className="theme-input mt-2"
+    />
+  )}
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -884,7 +940,27 @@ const BarberDashboard = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {sortedBookings.map((booking, index) => renderBookingCard(booking, index))}
+                {paginatedBookings.map((booking, index) =>
+                  renderBookingCard(booking, (currentBookingPage - 1) * PAGE_SIZE + index)
+                )}
+              </div>
+            )}
+            {sortedBookings.length > PAGE_SIZE && (
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {Array.from({ length: totalBookingPages }, (_, index) => index + 1).map((page) => (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setBookingPage(page)}
+                    className={`h-10 min-w-10 rounded-xl border px-3 text-sm font-semibold transition ${
+                      currentBookingPage === page
+                        ? 'border-amber-300 bg-amber-400 text-slate-950'
+                        : 'border-white/10 bg-white/5 text-slate-200 hover:border-amber-300/40'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
               </div>
             )}
           </div>

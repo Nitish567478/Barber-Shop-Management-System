@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate, useLocation } from 'react-router-dom';
-import BarberShopLoader from "./BarberShopLoader";
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -10,7 +9,8 @@ const ProtectedRoute = ({ children }) => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <BarberShopLoader />
+          <div className="loading loading-spinner loading-lg text-amber-400"></div>
+          <div className="mt-4 text-sm uppercase tracking-[0.25em] text-slate-300">Loading</div>
         </div>
       </div>
     );

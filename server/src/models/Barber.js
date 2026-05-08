@@ -97,6 +97,10 @@ const barberSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isOpen: {
+      type: Boolean,
+      default: true,
+    },
     isApproved: {
       type: Boolean,
       default: false,

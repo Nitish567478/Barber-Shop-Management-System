@@ -103,14 +103,14 @@ function CookieBanner() {
 
             <div className="mt-5 flex flex-wrap gap-4 text-sm">
               <Link
-                to="/privacy"
+                to="/privacy-policy"
                 className="text-amber-300 transition hover:text-amber-200"
               >
                 Privacy Policy
               </Link>
 
               <Link
-                to="/terms"
+                to="/terms-conditions"
                 className="text-amber-300 transition hover:text-amber-200"
               >
                 Terms & Conditions

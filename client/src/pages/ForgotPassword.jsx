@@ -42,7 +42,6 @@ const ForgotPassword = () => {
             Development preview link: <a href={previewUrl} className="underline">{previewUrl}</a>
           </div>
         )}
-
         <form onSubmit={handleSubmit} className="mt-6">
           <label className="mb-2 block text-sm font-medium text-slate-200">Email</label>
           <input

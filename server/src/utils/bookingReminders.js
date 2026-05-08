@@ -1,16 +1,26 @@
 import { Appointment } from '../models/Appointment.js';
-import { sendBookingReminderEmail } from './email.js';
+import { config } from '../config/config.js';
 import { sendNotification } from './notifications.js';
 
 const getAppointmentStart = (appointment) => {
-  const date = new Date(appointment.appointmentDate);
-
   const [hours, minutes] = appointment.appointmentTime
     .split(':')
     .map(Number);
 
-  date.setHours(hours, minutes, 0, 0);
-  return date;
+  const date = new Date(appointment.appointmentDate);
+  const utcDate = new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      hours,
+      minutes,
+      0,
+      0
+    ) - config.appointmentTimezoneOffsetMinutes * 60 * 1000
+  );
+
+  return utcDate;
 };
 
 export const processBookingReminders = async () => {
@@ -24,7 +34,7 @@ export const processBookingReminders = async () => {
       status: 'scheduled',
       reminderSentAt: null,
     })
-      .populate('customerId', 'name email')
+      .populate('customerId', 'name email phone')
       .populate({
         path: 'barberId',
         populate: { path: 'userId', select: 'name' },
@@ -58,6 +68,8 @@ export const processBookingReminders = async () => {
 
 export const startBookingReminderWorker = () => {
   console.log('Reminder worker started...');
+
+  processBookingReminders();
 
   setInterval(() => {
     processBookingReminders();

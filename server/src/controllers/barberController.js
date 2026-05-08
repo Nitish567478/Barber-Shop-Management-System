@@ -12,6 +12,7 @@ export const getAllBarbers = async (req, res, next) => {
 
     const barbers = await Barber.find({
       isActive: true,
+      isOpen: { $ne: false },
       isApproved: true,
       $or: [{ listingStatus: 'approved' }, { listingStatus: { $exists: false } }],
     })
@@ -136,6 +137,7 @@ export const updateBarber = async (req, res, next) => {
       experience,
       availability,
       isActive,
+      isOpen,
       shopName,
       bio,
       location,
@@ -155,6 +157,7 @@ export const updateBarber = async (req, res, next) => {
         experience,
         availability,
         isActive,
+        isOpen,
         shopName,
         bio,
         location,
@@ -231,6 +234,7 @@ export const updateMyBarberProfile = async (req, res, next) => {
       bio,
       location,
       isActive,
+      isOpen,
       shopImage,
       openingTime,
       closingTime,
@@ -267,6 +271,9 @@ export const updateMyBarberProfile = async (req, res, next) => {
     }
     if (isActive !== undefined) {
       updates.isActive = isActive;
+    }
+    if (isOpen !== undefined) {
+      updates.isOpen = Boolean(isOpen);
     }
     if (shopImage !== undefined) {
       updates.shopImage = shopImage;

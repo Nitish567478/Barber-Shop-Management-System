@@ -6,7 +6,7 @@ import BarberShopLoader from "../components/BarberShopLoader";
 const AboutUs = ({loading}) => {
 
   if(loading){
-    <p> <BarberShopLoader /> </p>
+    return <BarberShopLoader />;
   }
 
   const stats = [

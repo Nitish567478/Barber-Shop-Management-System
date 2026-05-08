@@ -15,9 +15,26 @@ const createTwilioClient = async () => {
   }
 };
 
+const normalizePhoneNumber = (value) => {
+  const phone = String(value || '').trim();
+  if (!phone) return '';
+  if (phone.startsWith('+')) return phone;
+
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) {
+    return `${config.defaultSmsCountryCode}${digits}`;
+  }
+  if (digits.length > 10 && !digits.startsWith('0')) {
+    return `+${digits}`;
+  }
+
+  return phone;
+};
+
 export const sendSMS = async ({ to, message }) => {
   try {
-    if (!to || !message) return;
+    const normalizedTo = normalizePhoneNumber(to);
+    if (!normalizedTo || !message) return;
 
     const client = await createTwilioClient();
     if (!client) {
@@ -27,10 +44,10 @@ export const sendSMS = async ({ to, message }) => {
     await client.messages.create({
       body: message,
       from: config.twilioPhone,
-      to,
+      to: normalizedTo,
     });
 
-    console.log('SMS sent to:', to);
+    console.log('SMS sent to:', normalizedTo);
   } catch (err) {
     console.error('SMS error:', err.message);
   }

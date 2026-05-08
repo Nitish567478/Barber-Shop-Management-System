@@ -14,6 +14,7 @@ function cn(...inputs) {
 
 const formatCurrency = (amount) => `Rs. ${Number(amount || 0).toLocaleString('en-IN')}`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString() : 'N/A');
+const PAGE_SIZE = 10;
 const getSuspensionLabel = (barber) => {
   if (!barber?.suspendedUntil) {
     return '';
@@ -77,6 +78,7 @@ const AdminDashboard = () => {
   const [activeView, setActiveView] = useState('overview');
   const [selectedBarber, setSelectedBarber] = useState(null);
   const [actionLoading, setActionLoading] = useState('');
+  const [appointmentsPage, setAppointmentsPage] = useState(1);
 
   const [appointments, setAppointments] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -192,6 +194,19 @@ const AdminDashboard = () => {
     report.barberId?.shopName?.toLowerCase().includes(q) ||
     report.message?.toLowerCase().includes(q)
   );
+  const filteredAppointments = appointments.filter((appointment) =>
+    !q ||
+    appointment.customerId?.name?.toLowerCase().includes(q) ||
+    appointment.customerId?.email?.toLowerCase().includes(q) ||
+    appointment.barberId?.shopName?.toLowerCase().includes(q) ||
+    appointment.status?.toLowerCase().includes(q)
+  );
+  const totalAppointmentPages = Math.max(1, Math.ceil(filteredAppointments.length / PAGE_SIZE));
+  const currentAppointmentPage = Math.min(appointmentsPage, totalAppointmentPages);
+  const paginatedAppointments = filteredAppointments.slice(
+    (currentAppointmentPage - 1) * PAGE_SIZE,
+    currentAppointmentPage * PAGE_SIZE
+  );
 
   const handleApprove = async (id) => {
     try {
@@ -235,6 +250,7 @@ const AdminDashboard = () => {
   const GreetingIcon = greeting.Icon;
   const navItems = [
     ['overview', 'Overview'],
+    ['bookings', 'Bookings'],
     ['reports', 'Reports'],
     ['barbers', 'Barbers'],
     ['customers', 'Customers'],
@@ -398,6 +414,64 @@ const AdminDashboard = () => {
               ))}
               {filteredReports.length === 0 && <p className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-slate-400">No reports found.</p>}
             </div>
+          </section>
+        )}
+
+        {activeView === 'bookings' && (
+          <section className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
+            <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="text-2xl font-semibold">All Bookings</h2>
+                <p className="mt-2 text-sm text-slate-400">Har page par 10 bookings show hongi.</p>
+              </div>
+              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
+                {filteredAppointments.length} total
+              </span>
+            </div>
+            <div className="space-y-3">
+              {paginatedAppointments.map((appointment, index) => (
+                <div key={appointment._id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                  <div className="grid gap-4 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-400/15 font-semibold text-amber-100">
+                      {(currentAppointmentPage - 1) * PAGE_SIZE + index + 1}
+                    </span>
+                    <div>
+                      <p className="font-semibold">{appointment.customerId?.name || 'Customer'}</p>
+                      <p className="mt-1 text-sm text-slate-400">
+                        {appointment.barberId?.shopName || 'Barber shop'} · {formatDate(appointment.appointmentDate)} at {appointment.appointmentTime}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-300">
+                        {appointment.customerId?.email || 'No email'} · {appointment.customerId?.phone || 'No phone'}
+                      </p>
+                    </div>
+                    <div className="text-left lg:text-right">
+                      <p className="font-semibold text-emerald-200">{formatCurrency(appointment.price)}</p>
+                      <p className="mt-1 text-sm capitalize text-slate-300">{appointment.status}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {filteredAppointments.length === 0 && <p className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-slate-400">No bookings found.</p>}
+            </div>
+            {filteredAppointments.length > PAGE_SIZE && (
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {Array.from({ length: totalAppointmentPages }, (_, index) => index + 1).map((page) => (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setAppointmentsPage(page)}
+                    className={cn(
+                      'h-10 min-w-10 rounded-xl border px-3 text-sm font-semibold transition',
+                      currentAppointmentPage === page
+                        ? 'border-amber-300 bg-amber-400 text-slate-950'
+                        : 'border-white/10 bg-white/5 text-slate-200 hover:border-amber-300/40'
+                    )}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
         )}
 

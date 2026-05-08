@@ -239,8 +239,3 @@ app.listen(PORT, () => {
   console.log(`Environment: ${config.nodeEnv}`);
   console.log(`To seed database with data: POST http://localhost:${PORT}/api/seed`);
 });
-
-
-
-
-startBookingReminderWorker();

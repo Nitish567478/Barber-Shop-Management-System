@@ -4,8 +4,17 @@ import { authAPI } from '../services/api';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const getSavedUser = () => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+      return null;
+    }
+  };
+
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const [user, setUser] = useState(() => getSavedUser());
+  const [loading, setLoading] = useState(() => Boolean(token && !getSavedUser()));
   const [error, setError] = useState(null);
 
   const persistUser = (nextUser) => {
@@ -21,10 +30,10 @@ export const AuthProvider = ({ children }) => {
 
   // Check if saved auth is still valid and sync role from backend profile.
   useEffect(() => {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const savedToken = localStorage.getItem('token') || sessionStorage.getItem('token');
 
     const initializeAuth = async () => {
-      if (!token) {
+      if (!savedToken) {
         setLoading(false);
         return;
       }

@@ -6,6 +6,7 @@ import { appointmentsAPI, couponsAPI, invoicesAPI } from '../services/api';
 import BarberShopLoader from "../components/BarberShopLoader";
 
 const formatCurrency = (value) => `Rs. ${Number(value || 0).toLocaleString('en-IN')}`;
+const PAGE_SIZE = 10;
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ const Dashboard = () => {
   const [error, setError] = useState('');
   const [vouchers, setVouchers] = useState([]);
   const [recentAppointments, setRecentAppointments] = useState([]);
+  const [appointmentsPage, setAppointmentsPage] = useState(1);
 
   const statCards = [
     {
@@ -102,7 +104,7 @@ const Dashboard = () => {
         const totalSpent = paidInvoiceTotal + completedAppointmentTotal;
 
         setVouchers(nextVouchers);
-        setRecentAppointments(appointments.slice(0, 4));
+        setRecentAppointments(appointments);
         setStats({
           upcomingAppointments: upcoming,
           completedAppointments: completed,
@@ -125,11 +127,18 @@ const Dashboard = () => {
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <div className="text-center">
           <div className="loading loading-spinner loading-lg text-amber-400"></div>
-          <p className="mt-4 text-sm uppercase tracking-[0.35em] text-slate-300"><BarberShopLoader /></p>
+          <div className="mt-4 text-sm uppercase tracking-[0.35em] text-slate-300"><BarberShopLoader /></div>
         </div>
       </div>
     );
   }
+
+  const totalAppointmentPages = Math.max(1, Math.ceil(recentAppointments.length / PAGE_SIZE));
+  const currentAppointmentPage = Math.min(appointmentsPage, totalAppointmentPages);
+  const paginatedAppointments = recentAppointments.slice(
+    (currentAppointmentPage - 1) * PAGE_SIZE,
+    currentAppointmentPage * PAGE_SIZE
+  );
 
   return (
     <div className="theme-page">
@@ -294,7 +303,7 @@ const Dashboard = () => {
               <p className="mt-2 text-sm text-slate-400">Quick view of your latest appointments.</p>
             </div>
             <div className="space-y-3">
-              {recentAppointments.map((appointment) => (
+              {paginatedAppointments.map((appointment) => (
                 <div key={appointment._id} className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -312,6 +321,24 @@ const Dashboard = () => {
               ))}
               {recentAppointments.length === 0 && <p className="text-sm text-slate-400">No booking details yet.</p>}
             </div>
+            {recentAppointments.length > PAGE_SIZE && (
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {Array.from({ length: totalAppointmentPages }, (_, index) => index + 1).map((page) => (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setAppointmentsPage(page)}
+                    className={`h-10 min-w-10 rounded-xl border px-3 text-sm font-semibold transition ${
+                      currentAppointmentPage === page
+                        ? 'border-amber-300 bg-amber-400 text-slate-950'
+                        : 'border-white/10 bg-white/5 text-slate-200 hover:border-amber-300/40'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
         </div>
       </main>

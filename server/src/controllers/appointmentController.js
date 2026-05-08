@@ -3,6 +3,7 @@ import { Service } from '../models/Service.js';
 import { Barber } from '../models/Barber.js';
 import { Coupon } from '../models/Coupon.js';
 import { Invoice } from '../models/Invoice.js';
+import { User } from '../models/User.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { generateInvoiceNumber } from '../utils/helpers.js';
 import { sendNotification } from '../utils/notifications.js';
@@ -103,11 +104,12 @@ export const createAppointment = async (req, res, next) => {
       if (
         !barber ||
         !barber.isActive ||
+        barber.isOpen === false ||
         !barber.isApproved ||
         (barber.suspendedUntil && barber.suspendedUntil > new Date()) ||
         barber.listingStatus && barber.listingStatus !== 'approved'
       ) {
-        throw new AppError('Selected barber is not available', 404);
+        throw new AppError('Selected barber is not accepting bookings right now', 404);
       }
       if (
         serviceBarberIds.length > 0 &&
@@ -130,11 +132,12 @@ export const createAppointment = async (req, res, next) => {
       if (
         !barberProfile ||
         !barberProfile.isActive ||
+        barberProfile.isOpen === false ||
         !barberProfile.isApproved ||
         (barberProfile.suspendedUntil && barberProfile.suspendedUntil > new Date()) ||
         (barberProfile.listingStatus && barberProfile.listingStatus !== 'approved')
       ) {
-        throw new AppError('Selected barber is not available', 404);
+        throw new AppError('Selected barber is not accepting bookings right now', 404);
       }
 
       if (
@@ -241,9 +244,11 @@ export const createAppointment = async (req, res, next) => {
     await appointment.save();
     await appointment.populate(appointmentPopulate);
 
+    const customer = await User.findById(req.user.userId).select('name email phone');
+
     await sendNotification({
       type: 'confirmation',
-      user: req.user,
+      user: customer || appointment.customerId || {},
       shopName: barberProfile?.shopName || 'Barber Shop',
       appointment,
     });

@@ -57,7 +57,7 @@ const ProfilePage = () => {
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <div className="text-center">
           <div className="loading loading-spinner loading-lg text-amber-400"></div>
-          <p className="mt-4 text-sm uppercase tracking-[0.35em] text-slate-300"><BarberShopLoader /></p>
+          <div className="mt-4 text-sm uppercase tracking-[0.35em] text-slate-300"><BarberShopLoader /></div>
         </div>
       </div>
     );

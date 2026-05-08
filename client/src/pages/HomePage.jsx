@@ -6,8 +6,6 @@ import { fallbackServices } from '../data/featuredServices';
 import { fallbackBarbers } from '../data/featuredBarbers';
 import { isValidObjectId } from '../utils/objectId';
 
-import BarberShopLoader from "../components/BarberShopLoader";
-
 const heroImage =
   'https://i.ibb.co/rfkJrsqc/handsome-man-cutting-beard-barber-shop-salon.jpg';
 const interiorImage =
@@ -84,7 +82,6 @@ const HomePage = () => {
   const { user } = useAuth();
   const [barbers, setBarbers] = useState([]);
   const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -98,10 +95,9 @@ const HomePage = () => {
         setBarbers(barbersRes.data.barbers || []);
         setServices(servicesRes.data.services || []);
       } catch (err) {
-        setError('Failed to load data');
+        setError('Failed to load latest data');
         console.error(err);
       } finally {
-        setLoading(false);
       }
     };
 
@@ -134,19 +130,6 @@ const HomePage = () => {
     Array.isArray(barber.specialization)
       ? barber.specialization.slice(0, 2).join(' • ')
       : barber.specialization || barberGallery[0].focus;
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        <div className="text-center">
-          <div className="loading loading-spinner loading-lg text-amber-400"></div>
-          <p className="mt-4 text-sm uppercase tracking-[0.35em] text-slate-300">
-            <BarberShopLoader /> 
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">

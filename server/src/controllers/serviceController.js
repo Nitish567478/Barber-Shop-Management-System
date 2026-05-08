@@ -27,6 +27,7 @@ export const getAllServices = async (req, res, next) => {
 
       return (
         service.barberId.isActive !== false &&
+        service.barberId.isOpen !== false &&
         service.barberId.isApproved === true &&
         (service.barberId.listingStatus === 'approved' || service.barberId.listingStatus === undefined)
       );

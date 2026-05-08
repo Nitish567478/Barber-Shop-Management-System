@@ -60,7 +60,12 @@ const Register = () => {
         },
       });
     } catch (err) {
+      const validationMessage = err.response?.data?.errors
+        ?.map((item) => item.msg)
+        .filter(Boolean)
+        .join(', ');
       const errorMsg =
+        validationMessage ||
         err.response?.data?.message ||
         err.response?.data?.error ||
         err.message ||
