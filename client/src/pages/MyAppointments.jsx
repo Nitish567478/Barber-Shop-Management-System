@@ -204,7 +204,7 @@ const MyAppointments = () => {
         {filtered.length === 0 ? (
           <div className="theme-card py-12 text-center">
             <p className="mb-4 text-lg text-slate-400">No appointments found</p>
-            <button onClick={() => navigate('/book-appointment')} className="theme-primary-btn">
+            <button onClick={() => navigate('/barbers')} className="theme-primary-btn">
               Book Your First Appointment
             </button>
           </div>
