@@ -6,7 +6,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   mongoUri: process.env.MONGO_URI,
   jwtSecret: process.env.JWT_SECRET,
-  frontendUrl: (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, ''),
+  frontendUrl: (process.env.FRONTEND_URL || 'http://localhost:5173'),
   appointmentTimezoneOffsetMinutes: Number(process.env.APPOINTMENT_TIMEZONE_OFFSET_MINUTES || 330),
   jwtExpiration: '7d',
   smtpHost: process.env.SMTP_HOST || '',

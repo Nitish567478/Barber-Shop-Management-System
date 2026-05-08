@@ -1,8 +1,8 @@
 import express from 'express';
-import cors from 'cors';
 import mongoose from 'mongoose';
 import { connectDB, isDatabaseConnected } from './config/database.js';
 import { config } from './config/config.js';
+import { corsMiddleware } from './middleware/cors.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { ensureAdminUser } from './utils/ensureAdminUser.js';
 import { ensureDefaultServices } from './utils/ensureDefaultServices.js';
@@ -22,11 +22,7 @@ import couponRoutes from './routes/couponRoutes.js';
 const app = express();
 
 // Middleware
-app.use(cors({
-  origin: config.frontendUrl,
-  credentials: true,
-}));
-
+app.use(corsMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
