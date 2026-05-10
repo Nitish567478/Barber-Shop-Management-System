@@ -1,10 +1,15 @@
 import axios from 'axios';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV
+const withApiPrefix = (url) => {
+  const normalizedUrl = url.replace(/\/+$/, '');
+  return normalizedUrl.endsWith('/api') ? normalizedUrl : `${normalizedUrl}/api`;
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_URL
+  ? withApiPrefix(import.meta.env.VITE_API_URL)
+  : import.meta.env.DEV
     ? 'https://barber-shop-management-system-1.onrender.com/api'
-    : '/api');
+    : '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
