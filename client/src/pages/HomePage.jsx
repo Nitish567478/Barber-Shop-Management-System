@@ -4,66 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import { barbersAPI, servicesAPI } from '../services/api';
 import { fallbackServices } from '../data/featuredServices';
 import { fallbackBarbers } from '../data/featuredBarbers';
-import { isValidObjectId } from '../utils/objectId';
 
-const heroImage =
-  'https://i.ibb.co/rfkJrsqc/handsome-man-cutting-beard-barber-shop-salon.jpg';
-const interiorImage =
-  'https://img.freepik.com/free-photo/hairstylist-washing-client-s-hair-salon_23-2148242852.jpg?ga=GA1.1.1764038526.1777014227&semt=ais_hybrid&w=740&q=80';
-const groomingImage =
-  'https://i.ibb.co/4ntvPFbc/stylish-man-sitting-barbershop.jpg';
-
-  
-const barberGallery = [
-  {
-    image:
-      'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=1000&q=80',
-    detail: 'Known for fade precision and beard balance',
-    focus: 'Fade specialist',
-  },
-  {
-    image:
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=1000&q=80',
-    detail: 'Strong in classic cuts and executive grooming',
-    focus: 'Classic cuts',
-  },
-  {
-    image:
-      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=1000&q=80',
-    detail: 'Focuses on texture styling and modern trends',
-    focus: 'Modern trends',
-  },
-  {
-    image:
-      'https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=1000&q=80',
-    detail: 'Trusted for client comfort and polished results',
-    focus: 'Client comfort',
-  },
-  {
-    image:
-      'https://images.unsplash.com/photo-1506277886164-e25aa3f4ef7f?auto=format&fit=crop&w=1000&q=80',
-    detail: 'Detail-oriented barber for premium finishes',
-    focus: 'Detail work',
-  },
-  {
-    image:
-      'https://images.unsplash.com/photo-1546961329-78bef0414d7c?auto=format&fit=crop&w=1000&q=80',
-    detail: 'Specializes in grooming routines and shaping',
-    focus: 'Grooming care',
-  },
-  {
-    image:
-      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=1000&q=80',
-    detail: 'Consistent consultation-first approach for tailored styling',
-    focus: 'Consultation',
-  },
-  {
-    image:
-      'https://images.unsplash.com/photo-1504257432389-52343af06ae3?auto=format&fit=crop&w=1000&q=80',
-    detail: 'Sharp finishing standards suited to premium clientele',
-    focus: 'Premium finish',
-  },
-];
+const heroImage = 'https://i.ibb.co/rfkJrsqc/handsome-man-cutting-beard-barber-shop-salon.jpg';
+const interiorImage = 'https://img.freepik.com/free-photo/hairstylist-washing-client-s-hair-salon_23-2148242852.jpg?ga=GA1.1.1764038526.1777014227&semt=ais_hybrid&w=740&q=80';
+const groomingImage = 'https://i.ibb.co/4ntvPFbc/stylish-man-sitting-barbershop.jpg';
 
 const highlights = [
   { value: '10+', label: 'Premium grooming services' },
@@ -109,7 +53,6 @@ const HomePage = () => {
       navigate('/book-appointment');
       return;
     }
-
     navigate('/login', { state: { from: '/book-appointment' } });
   };
 
@@ -118,7 +61,6 @@ const HomePage = () => {
       navigate('/dashboard');
       return;
     }
-
     navigate('/login');
   };
 
@@ -126,10 +68,13 @@ const HomePage = () => {
   const displayedBarbers = barbers.length > 0 ? barbers.slice(0, 6) : fallbackBarbers.slice(0, 6);
 
   const getBarberExperience = (barber) => barber.experienceYears || barber.experience || 0;
-  const getBarberSpecialization = (barber) =>
-    Array.isArray(barber.specialization)
-      ? barber.specialization.slice(0, 2).join(' • ')
-      : barber.specialization || barberGallery[0].focus;
+  const getBarberSpecialization = (barber) => {
+    if (!barber) return '—';
+    if (Array.isArray(barber.specialization)) {
+      return barber.specialization.slice(0, 2).join(' • ') || '—';
+    }
+    return barber.specialization || '—';
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -242,10 +187,15 @@ const HomePage = () => {
                   {/* IMAGE */}
                   <div className="relative h-72 overflow-hidden">
                     <img
-                      src={barberGallery[index % barberGallery.length].image}
-                      alt={barber.userId?.name || "Barber"}
+                      src={barber.shopImage || barber.userId?.image || 'https://i.ibb.co/rGmYkXb/barber-placeholder.jpg'}
+                      alt={barber.shopName || barber.userId?.name || 'Barber'}
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
+                      onError={(event) => {
+                        event.currentTarget.src = 'https://i.ibb.co/rGmYkXb/barber-placeholder.jpg';
+                      }}
                     />
+
+
 
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/10 to-transparent" />
 
@@ -257,7 +207,8 @@ const HomePage = () => {
 
                     <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3">
                       <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white backdrop-blur">
-                        {barberGallery[index % barberGallery.length].focus}
+                        {Array.isArray(barber.specialization) ? barber.specialization[0] : (barber.specialization || 'Specialist')}
+
                       </span>
 
                       <span className="rounded-full bg-amber-400 px-3 py-1 text-xs font-semibold text-slate-950">
@@ -291,7 +242,8 @@ const HomePage = () => {
                     </div>
 
                     <p className="mt-5 text-sm leading-7 text-slate-300">
-                      {barberGallery[index % barberGallery.length].detail}
+                      {barber.bio || 'Trusted barber with great customer service.'}
+
                     </p>
 
                     <div className="mt-5 rounded-2xl bg-white/5 p-4">
@@ -302,6 +254,7 @@ const HomePage = () => {
                       <p className="mt-2 text-sm font-medium text-white">
                         {getBarberSpecialization(barber)}
                       </p>
+
                     </div>
 
                     <div className="mt-5 grid grid-cols-2 gap-3">

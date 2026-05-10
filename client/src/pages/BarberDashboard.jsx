@@ -638,13 +638,13 @@ const BarberDashboard = () => {
                 <input name="shopImage" value={profileForm.shopImage} onChange={handleProfileChange} className="theme-input" placeholder="https://example.com/barber-shop.jpg" />
                 <p className="mt-2 text-xs text-slate-400"> Use this link for image URLs:{' '}
                   <a
-                    href="https://imagelinker.netlify.app/"
+                    href="https://image-to-url-iota.vercel.app/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-amber-400 hover:underline"
                   >
-                    imagelinker.netlify.app
-                  </a> Paste an image URL to show your shop photo on the public barber page.
+                    Image to URL Converter
+                  </a> Upload your shop image there and dragon drop the generated image URL.
                 </p>
               </div>
               <div>
