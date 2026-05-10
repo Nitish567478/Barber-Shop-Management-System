@@ -29,8 +29,6 @@ const HomePage = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    let isMounted = true;
-
     const fetchData = async () => {
       try {
         const [barbersRes, servicesRes] = await Promise.all([
@@ -38,23 +36,17 @@ const HomePage = () => {
           servicesAPI.getAll(),
         ]);
 
-        if (!isMounted) return;
-
-        setBarbers(barbersRes?.data?.barbers || []);
-        setServices(servicesRes?.data?.services || []);
+        setBarbers(barbersRes.data.barbers || []);
+        setServices(servicesRes.data.services || []);
       } catch (err) {
-        if (!isMounted) return;
         setError('Failed to load latest data');
         console.error(err);
+      } finally {
       }
     };
 
     fetchData();
-    return () => {
-      isMounted = false;
-    };
   }, []);
-
 
   const handleBookAppointment = () => {
     if (user) {
@@ -73,8 +65,8 @@ const HomePage = () => {
   };
 
   const displayedServices = services.length > 0 ? services.slice(0, 6) : fallbackServices;
-  // Always show featured barbers (fallback) even if the API returns an empty list.
-  const displayedBarbers = barbers.length > 0 ? barbers.slice(0, 6) : fallbackBarbers.slice(0, 6);
+  // If API returns no barbers, don't show fallback/dummy barbers
+  const displayedBarbers = barbers.length > 0 ? barbers.slice(0, 6) : [];
 
 
   const getBarberExperience = (barber) => barber.experienceYears || barber.experience || 0;
@@ -163,6 +155,7 @@ const HomePage = () => {
 
       <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         {displayedBarbers.length > 0 ? (
+
           <>
             <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -186,6 +179,111 @@ const HomePage = () => {
               >
                 View All Barbers
               </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-7 md:grid-cols-2 xl:grid-cols-3">
+              {displayedBarbers.map((barber, index) => (
+                <div
+                  key={barber._id}
+                  className="group overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900 transition duration-300 hover:-translate-y-2 hover:border-amber-400/40 hover:shadow-2xl hover:shadow-black/40"
+                >
+                  {/* IMAGE */}
+                  <div className="relative h-72 overflow-hidden">
+                    <img
+                      src={barber.shopImage || barber.userId?.image || 'https://i.ibb.co/rGmYkXb/barber-placeholder.jpg'}
+                      alt={barber.shopName || barber.userId?.name || 'Barber'}
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
+                      onError={(event) => {
+                        event.currentTarget.src = 'https://i.ibb.co/rGmYkXb/barber-placeholder.jpg';
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/10 to-transparent" />
+
+                    <div className="absolute left-4 top-4">
+                      <span className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-semibold text-slate-950">
+                        Available
+                      </span>
+                    </div>
+
+                    <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3">
+                      <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white backdrop-blur">
+                        {Array.isArray(barber.specialization) ? barber.specialization[0] : (barber.specialization || 'Specialist')}
+
+                      </span>
+
+                      <span className="rounded-full bg-amber-400 px-3 py-1 text-xs font-semibold text-slate-950">
+                        Verified
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* CONTENT */}
+                  <div className="p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-2xl font-semibold text-white">
+                          {barber.userId?.name || "Barber"}
+                        </h3>
+
+                        <p className="mt-2 text-sm text-slate-400">
+                          {barber.userId?.phone ||
+                            "Contact details available after booking"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl bg-amber-400/10 px-3 py-2 text-center">
+                        <p className="text-lg font-semibold text-amber-300">
+                          {getBarberExperience(barber)}+
+                        </p>
+                        <p className="text-[10px] uppercase tracking-[2px] text-slate-400">
+                          Years
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="mt-5 text-sm leading-7 text-slate-300">
+                      {barber.bio || 'Trusted barber with great customer service.'}
+
+                    </p>
+
+                    <div className="mt-5 rounded-2xl bg-white/5 p-4">
+                      <p className="text-xs uppercase tracking-[3px] text-slate-400">
+                        Specialization
+                      </p>
+
+                      <p className="mt-2 text-sm font-medium text-white">
+                        {getBarberSpecialization(barber)}
+                      </p>
+
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl bg-white/5 p-4">
+                        <p className="text-xs text-slate-400">Client Focus</p>
+                        <p className="mt-2 text-sm font-medium text-white">
+                          Consultation
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl bg-white/5 p-4">
+                        <p className="text-xs text-slate-400">Slots</p>
+                        <p className="mt-2 text-sm font-medium text-white">
+                          Flexible
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 border-t border-white/10 pt-5">
+                      <button
+                        onClick={handleBookAppointment}
+                        className="w-full rounded-full bg-amber-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-amber-300 crusor-disabled"
+                      >
+                        Book With Barber
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </>
         ) : (
