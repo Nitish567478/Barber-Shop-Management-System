@@ -2,11 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { appointmentsAPI, couponsAPI, invoicesAPI } from '../services/api';
+import { Moon, Sun, Sunrise } from 'lucide-react';
 
 import BarberShopLoader from "../components/BarberShopLoader";
 
 const formatCurrency = (value) => `Rs. ${Number(value || 0).toLocaleString('en-IN')}`;
 const PAGE_SIZE = 10;
+
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return { label: 'Good morning', Icon: Sunrise };
+  if (hour < 17) return { label: 'Good afternoon', Icon: Sun };
+  if (hour < 21) return { label: 'Good evening', Icon: Moon };
+  return { label: 'Good night', Icon: Moon };
+};
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -139,6 +148,8 @@ const Dashboard = () => {
     (currentAppointmentPage - 1) * PAGE_SIZE,
     currentAppointmentPage * PAGE_SIZE
   );
+  const greeting = getGreeting();
+  const GreetingIcon = greeting.Icon;
 
   return (
     <div className="theme-page">
@@ -153,7 +164,10 @@ const Dashboard = () => {
               )}
             </div>
             <div>
-              <p className="theme-subtitle">Customer Dashboard</p>
+              <div className="inline-flex items-center gap-3 rounded-full border border-amber-300/25 bg-slate-900/80 px-4 py-2 text-amber-100 shadow-sm shadow-amber-950/20">
+                <GreetingIcon size={18} />
+                <span className="text-base font-semibold">{greeting.label}, {user?.name || 'Customer'}</span>
+              </div>
               <h1 className="mt-4 text-4xl font-semibold text-white">Welcome back, {user?.name}</h1>
             </div>
           </div>

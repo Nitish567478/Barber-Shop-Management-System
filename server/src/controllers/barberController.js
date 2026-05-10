@@ -2,6 +2,13 @@ import { Barber } from '../models/Barber.js';
 import { User } from '../models/User.js';
 import { AppError } from '../middleware/errorHandler.js';
 
+const publicBarberFilters = {
+  isActive: true,
+  isOpen: { $ne: false },
+  isApproved: true,
+  $or: [{ listingStatus: 'approved' }, { listingStatus: { $exists: false } }],
+};
+
 // Get all barbers
 export const getAllBarbers = async (req, res, next) => {
   try {
@@ -10,12 +17,7 @@ export const getAllBarbers = async (req, res, next) => {
       { $set: { isActive: true, suspensionReason: '' }, $unset: { suspendedUntil: '' } }
     );
 
-    const barbers = await Barber.find({
-      isActive: true,
-      isOpen: { $ne: false },
-      isApproved: true,
-      $or: [{ listingStatus: 'approved' }, { listingStatus: { $exists: false } }],
-    })
+    const barbers = await Barber.find(publicBarberFilters)
       .populate('userId', 'name email phone')
       .sort({ createdAt: -1 });
 
@@ -57,7 +59,10 @@ export const getAdminBarbers = async (req, res, next) => {
 // Get barber by ID
 export const getBarberById = async (req, res, next) => {
   try {
-    const barber = await Barber.findById(req.params.id).populate(
+    const barber = await Barber.findOne({
+      _id: req.params.id,
+      ...publicBarberFilters,
+    }).populate(
       'userId',
       'name email phone'
     );
@@ -189,7 +194,10 @@ export const updateBarber = async (req, res, next) => {
 // Get barber availability
 export const getBarberAvailability = async (req, res, next) => {
   try {
-    const barber = await Barber.findById(req.params.id);
+    const barber = await Barber.findOne({
+      _id: req.params.id,
+      ...publicBarberFilters,
+    });
 
     if (!barber) {
       throw new AppError('Barber not found', 404);

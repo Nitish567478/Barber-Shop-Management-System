@@ -264,9 +264,9 @@ const AdminDashboard = () => {
       <main className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="inline-flex items-center gap-3 rounded-full border border-amber-300/20 bg-amber-400/10 px-4 py-2 text-amber-100">
+            <div className="inline-flex items-center gap-3 rounded-full border border-amber-300/25 bg-slate-900/80 px-4 py-2 text-amber-100 shadow-sm shadow-amber-950/20">
               <GreetingIcon size={18} />
-              <span>{greeting.label}, {user?.name || 'Admin'}</span>
+              <span className="text-base font-semibold">{greeting.label}, {user?.name || 'Admin'}</span>
             </div>
             <h1 className="mt-5 text-4xl font-semibold tracking-normal text-white">
               Barabar Shop Control Center

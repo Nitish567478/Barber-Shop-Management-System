@@ -45,10 +45,10 @@ const Login = () => {
       <div className="theme-card w-full max-w-md">
         <p className="theme-subtitle text-center">Welcome Back</p>
         <h1 className="mt-4 text-center text-3xl font-semibold text-white">
-          Login to Barber Shop
+          Login to Barabar
         </h1>
         <p className="mt-3 text-center text-sm text-slate-300">
-          Access your appointments, invoices, and grooming dashboard.
+          Access your bookings, invoices, and shop dashboard from one account.
         </p>
 
         {location.state?.message && (

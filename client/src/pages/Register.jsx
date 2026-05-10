@@ -55,7 +55,7 @@ const Register = () => {
       navigate('/login', {
         state: {
           message: isBarber
-            ? 'Barber account created successfully. Log in to set up your services and manage bookings.'
+            ? 'Barber account created successfully. Log in to complete your shop profile and submit it for admin approval.'
             : 'Registration successful! Please log in with your credentials.',
         },
       });
@@ -82,10 +82,12 @@ const Register = () => {
       <div className="theme-card w-full max-w-2xl">
         <p className="theme-subtitle text-center">Create Account</p>
         <h1 className="mt-4 text-center text-3xl font-semibold text-white">
-          Join Barber Shop
+          {isBarber ? 'Join Barber Shop' : 'Join as a Customer'}
         </h1>
         <p className="mt-3 text-center text-sm text-slate-300">
-          Create a customer account or onboard as a barber and start managing your shop from one dashboard.
+          {isBarber
+            ? 'Create your barber shop account and submit your shop for admin approval before it goes public.'
+            : 'Create a customer account to book appointments, manage invoices, and share feedback.'}
         </p>
 
         {error && (
@@ -251,7 +253,7 @@ const Register = () => {
               disabled={loading}
               className="theme-primary-btn w-full"
             >
-              {loading ? 'Registering...' : isBarber ? 'Create Barber Account' : 'Register'}
+              {loading ? 'Registering...' : isBarber ? 'Create Barber Account' : 'Join as a Customer'}
             </button>
           </div>
         </form>

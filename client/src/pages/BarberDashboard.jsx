@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { appointmentsAPI, barbersAPI, couponsAPI, servicesAPI } from '../services/api';
-import { Power, Star, X } from 'lucide-react';
+import { Moon, Power, Star, Sun, Sunrise, X } from 'lucide-react';
 
 import BarberShopLoader from '../components/BarberShopLoader';
 
@@ -31,6 +31,13 @@ const PAGE_SIZE = 10;
 const formatCurrency = (value) => `Rs. ${Number(value || 0)}`;
 const formatDate = (value) => new Date(value).toLocaleDateString();
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : 'N/A');
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return { label: 'Good morning', Icon: Sunrise };
+  if (hour < 17) return { label: 'Good afternoon', Icon: Sun };
+  if (hour < 21) return { label: 'Good evening', Icon: Moon };
+  return { label: 'Good night', Icon: Moon };
+};
 const isSameDay = (value, date = new Date()) => {
   const next = new Date(value);
   return (
@@ -105,12 +112,15 @@ const BarberDashboard = () => {
   const [couponForm, setCouponForm] = useState(emptyCouponForm);
   const [editingServiceId, setEditingServiceId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingService, setSavingService] = useState(false);
   const [savingCoupon, setSavingCoupon] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [bookingPage, setBookingPage] = useState(1);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
+  const profileFormDirtyRef = useRef(false);
 
   const jumpToSection = (sectionId) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -131,11 +141,12 @@ const BarberDashboard = () => {
     });
   };
 
-  const loadDashboard = async () => {
+  const fetchDashboard = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (silent) setRefreshing(true);
+      else setLoading(true);
       setError('');
-      const [profileRes, servicesRes, bookingsRes, couponsRes, customersRes] = await Promise.all([
+      const [profileRes, servicesRes, bookingsRes, couponsRes, customersRes] = await Promise.allSettled([
         barbersAPI.getMine(),
         servicesAPI.getMine(),
         appointmentsAPI.getBarberBookings(),
@@ -143,25 +154,35 @@ const BarberDashboard = () => {
         couponsAPI.getRegularCustomers(),
       ]);
 
-      const nextProfile = profileRes.data.barber;
-      const nextServices = servicesRes.data.services || [];
-      const nextBookings = bookingsRes.data.appointments || [];
+      if (profileRes.status === 'fulfilled') {
+        const nextProfile = profileRes.value.data.barber;
+        setProfile(nextProfile);
+        if (!profileFormDirtyRef.current) {
+          syncProfileForm(nextProfile);
+        }
+      }
 
-      setProfile(nextProfile);
-      setServices(nextServices);
-      setBookings(nextBookings);
-      setCoupons(couponsRes.data.coupons || []);
-      setRegularCustomers(customersRes.data.customers || []);
-      syncProfileForm(nextProfile);
+      setServices(servicesRes.status === 'fulfilled' ? servicesRes.value.data.services || [] : []);
+      setBookings(bookingsRes.status === 'fulfilled' ? bookingsRes.value.data.appointments || [] : []);
+      setCoupons(couponsRes.status === 'fulfilled' ? couponsRes.value.data.coupons || [] : []);
+      setRegularCustomers(customersRes.status === 'fulfilled' ? customersRes.value.data.customers || [] : []);
+      setLastRefreshedAt(new Date());
+
+      if (profileRes.status === 'rejected') {
+        setError(profileRes.reason?.response?.data?.message || 'Failed to load barber dashboard');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load barber dashboard');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    loadDashboard();
+    fetchDashboard();
+    const intervalId = window.setInterval(() => fetchDashboard({ silent: true }), 25000);
+    return () => window.clearInterval(intervalId);
   }, []);
 
   const clearBanner = () => {
@@ -171,6 +192,7 @@ const BarberDashboard = () => {
 
   const handleProfileChange = (e) => {
     const { name, value, type, checked } = e.target;
+    profileFormDirtyRef.current = true;
     setProfileForm((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -211,8 +233,13 @@ const BarberDashboard = () => {
       });
       const nextProfile = response.data.barber;
       setProfile(nextProfile);
+      profileFormDirtyRef.current = false;
       syncProfileForm(nextProfile);
-      setSuccess('Barber profile updated successfully. Your shop profile is ready to publish.');
+      setSuccess(
+        nextProfile.isApproved
+          ? 'Barber profile updated successfully.'
+          : 'Barber profile saved. Submit it for admin approval before it can appear publicly.'
+      );
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update barber profile');
     } finally {
@@ -227,8 +254,15 @@ const BarberDashboard = () => {
       const response = await barbersAPI.updateMine({ isOpen: nextIsOpen });
       const nextProfile = response.data.barber;
       setProfile(nextProfile);
+      profileFormDirtyRef.current = false;
       syncProfileForm(nextProfile);
-      setSuccess(nextIsOpen ? 'Shop is open for bookings.' : 'Shop is closed for new bookings.');
+      setSuccess(
+        nextIsOpen && !nextProfile.isApproved
+          ? 'Shop status saved. It will appear publicly only after admin approval.'
+          : nextIsOpen
+            ? 'Shop is open for bookings.'
+            : 'Shop is closed for new bookings.'
+      );
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update shop status');
     }
@@ -334,6 +368,25 @@ const BarberDashboard = () => {
     }
   };
 
+  const [actionLoading, setActionLoading] = useState('');
+
+  const handleSubmitListing = async () => {
+    try {
+      clearBanner();
+      setActionLoading('submit-listing');
+      const response = await barbersAPI.submitListing();
+      const nextProfile = response.data.barber;
+      setProfile(nextProfile);
+      profileFormDirtyRef.current = false;
+      syncProfileForm(nextProfile);
+      setSuccess('Your barber shop has been sent to admin for approval. It is not public yet.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to submit shop for admin approval');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
@@ -368,6 +421,8 @@ const BarberDashboard = () => {
   const totalRevenue = completedBookings.reduce((sum, booking) => sum + (booking.price || 0), 0);
   const previewImage = profileForm.shopImage || profile?.shopImage || defaultShopPreview;
   const suspensionLabel = getSuspensionLabel(profile);
+  const greeting = getGreeting();
+  const GreetingIcon = greeting.Icon;
 
   const statCards = [
     { label: 'Active Services', value: services.length, tone: 'text-amber-200' },
@@ -458,7 +513,10 @@ const BarberDashboard = () => {
     <div className="theme-page">
       <main className="theme-shell">
         <div className="theme-hero mb-8">
-          <p className="theme-subtitle">Barber Dashboard</p>
+          <div className="inline-flex items-center gap-3 rounded-full border border-amber-300/25 bg-slate-900/80 px-4 py-2 text-amber-100 shadow-sm shadow-amber-950/20">
+            <GreetingIcon size={18} />
+            <span className="text-base font-semibold">{greeting.label}, {user?.name || profile?.userId?.name || 'Barber'}</span>
+          </div>
           <h1 className="mt-4 text-4xl font-semibold text-white">
             {profile?.shopName || `${user?.name}'s Barber Studio`}
           </h1>
@@ -487,6 +545,19 @@ const BarberDashboard = () => {
               <Power size={16} />
               {profile?.isOpen !== false ? 'Open' : 'Closed'}
             </button>
+            <button
+              type="button"
+              onClick={() => fetchDashboard({ silent: true })}
+              disabled={refreshing}
+              className="theme-secondary-btn"
+            >
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+            {lastRefreshedAt && (
+              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-slate-400">
+                Updated {lastRefreshedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
           </div>
         </div>
 
@@ -494,7 +565,7 @@ const BarberDashboard = () => {
         {success && <div className="alert alert-success mb-6 border border-emerald-400/20 bg-emerald-500/10 text-emerald-100">{success}</div>}
         {!profile?.isApproved && (
           <div className="alert alert-warning mb-6 border border-yellow-400/20 bg-yellow-500/10 text-yellow-100">
-            Your barber shop is pending approval from the admin. It will appear publicly after approval.
+            Your barber shop is not public yet. It will appear to customers only after admin approval.
           </div>
         )}
         {suspensionLabel && (
@@ -538,9 +609,9 @@ const BarberDashboard = () => {
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <section className="theme-card">
             <div className="mb-6 border-b border-white/10 pb-4">
-              <h2 className="text-2xl font-semibold text-white">Publish Barber Shop</h2>
+              <h2 className="text-2xl font-semibold text-white">Barber Shop Profile</h2>
               <p className="mt-2 text-sm text-slate-400">
-                Add the details customers need before booking: your name, shop name, timings, location, and photo.
+                Add the details customers need before booking. Admin approval is required before your shop goes public.
               </p>
             </div>
 
@@ -602,8 +673,22 @@ const BarberDashboard = () => {
               </label>
               <div className="md:col-span-2">
                 <button type="submit" disabled={savingProfile} className="theme-primary-btn w-full md:w-auto">
-                  {savingProfile ? 'Saving profile...' : 'Publish Shop Profile'}
+                  {savingProfile ? 'Saving profile...' : 'Save Shop Profile'}
                 </button>
+                {!profile?.isApproved && (
+                  <button
+                    type="button"
+                    disabled={actionLoading === 'submit-listing' || profile?.listingStatus === 'pending'}
+                    onClick={handleSubmitListing}
+                    className="theme-secondary-btn mt-3 w-full md:ml-3 md:mt-0 md:w-auto"
+                  >
+                    {actionLoading === 'submit-listing'
+                      ? 'Submitting...'
+                      : profile?.listingStatus === 'pending'
+                        ? 'Waiting for Admin Approval'
+                        : 'Submit for Admin Approval'}
+                  </button>
+                )}
               </div>
             </form>
           </section>
