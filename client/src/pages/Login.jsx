@@ -45,7 +45,7 @@ const Login = () => {
       <div className="theme-card w-full max-w-md">
         <p className="theme-subtitle text-center">Welcome Back</p>
         <h1 className="mt-4 text-center text-3xl font-semibold text-white">
-          Login to Barabar
+          Login to Customer OR Barabar
         </h1>
         <p className="mt-3 text-center text-sm text-slate-300">
           Access your bookings, invoices, and shop dashboard from one account.
