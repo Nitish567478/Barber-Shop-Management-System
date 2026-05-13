@@ -155,24 +155,20 @@ const HomePage = () => {
 
       <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         {displayedBarbers.length > 0 ? (
-
           <>
             <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-sm uppercase tracking-[0.4em] text-amber-400">
                   Our Barbers
                 </p>
-
                 <h2 className="mt-3 text-4xl font-semibold text-white sm:text-5xl">
                   Meet The Masters
                 </h2>
-
                 <p className="mt-4 max-w-2xl text-slate-400 leading-7">
                   Highly trained professionals focused on precision cuts, grooming,
                   style consultation and premium customer experience.
                 </p>
               </div>
-
               <button
                 onClick={() => navigate("/barbers")}
                 className="rounded-full border border-white/15 px-6 py-3 text-sm font-medium text-white transition hover:border-amber-400 hover:text-amber-300"
