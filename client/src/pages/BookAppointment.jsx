@@ -9,7 +9,7 @@ const formatCurrency = (value) => `Rs. ${Number(value || 0).toLocaleString('en-I
 
 const BookAppointment = () => {
   const { user } = useAuth();
-  const location = useLocation();
+  const { state } = useLocation();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     barberId: '',
@@ -55,12 +55,12 @@ const BookAppointment = () => {
       setVouchers(nextVouchers);
       setFormData((prev) => ({
         ...prev,
-        barberId: isValidObjectId(location.state?.selectedBarberId)
-          ? location.state.selectedBarberId
+        barberId: isValidObjectId(state?.selectedBarberId)
+          ? state.selectedBarberId
           : prev.barberId,
         serviceIds:
-          isValidObjectId(location.state?.selectedServiceId) && prev.serviceIds.length === 0
-            ? [location.state.selectedServiceId]
+          isValidObjectId(state?.selectedServiceId) && prev.serviceIds.length === 0
+            ? [state.selectedServiceId]
             : prev.serviceIds,
       }));
 
@@ -76,7 +76,7 @@ const BookAppointment = () => {
     };
 
     fetchData();
-  }, [location.state]);
+  }, [state?.selectedBarberId, state?.selectedServiceId]);
 
   const filteredServices = liveServices.filter((service) => {
     if (!formData.barberId) {
@@ -112,7 +112,7 @@ const BookAppointment = () => {
     : 0;
   const payableAmount = Math.max(0, totalPrice - couponDiscount);
 
-  const handleChange = (e) => {
+  const handleFormChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => {
       const next = { ...prev, [name]: value };
@@ -210,13 +210,14 @@ const BookAppointment = () => {
         <div className="theme-card">
           <form onSubmit={handleSubmit}>
             <div className="mb-6">
-              <label className="mb-2 block text-sm font-medium text-slate-200">
+              <label htmlFor="barberId" className="mb-2 block text-sm font-medium text-slate-200">
                 Select Barber / Shop (Optional)
               </label>
               <select
+                id="barberId"
                 name="barberId"
                 value={formData.barberId}
-                onChange={handleChange}
+                onChange={handleFormChange}
                 className="theme-select"
               >
                 <option value="">Any available barber</option>
@@ -231,25 +232,29 @@ const BookAppointment = () => {
               </p>
             </div>
 
-            <div className="mb-6">
-              <label className="mb-2 block text-sm font-medium text-slate-200">Select Multiple Services</label>
+            <fieldset className="mb-6">
+              <legend className="mb-2 block text-sm font-medium text-slate-200">Select Multiple Services</legend>
               <div className="grid gap-3">
-                {filteredServices.map((service) => (
-                  <label
-                    key={service._id}
-                    className={`rounded-2xl border p-4 text-sm ${
-                      formData.serviceIds.includes(service._id)
-                        ? 'border-amber-300/40 bg-amber-400/10 text-amber-100'
-                        : 'border-white/10 bg-white/5 text-slate-200'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={formData.serviceIds.includes(service._id)}
-                        onChange={() => handleServiceToggle(service._id)}
-                      />
-                      <div>
+                {filteredServices.map((service) => {
+                  const serviceCheckboxId = `service-${service._id}`;
+                  return (
+                    <label
+                      key={service._id}
+                      htmlFor={serviceCheckboxId}
+                      className={`rounded-2xl border p-4 text-sm ${
+                        formData.serviceIds.includes(service._id)
+                          ? 'border-amber-300/40 bg-amber-400/10 text-amber-100'
+                          : 'border-white/10 bg-white/5 text-slate-200'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          id={serviceCheckboxId}
+                          type="checkbox"
+                          checked={formData.serviceIds.includes(service._id)}
+                          onChange={() => handleServiceToggle(service._id)}
+                        />
+                        <div>
                         <p className="font-medium">{service.name}</p>
                         <p className="text-xs text-slate-400">
                           Rs. {service.price} • {service.duration} mins
@@ -257,22 +262,24 @@ const BookAppointment = () => {
                       </div>
                     </div>
                   </label>
-                ))}
+                  );
+                })}
               </div>
               {!hasLiveServices && (
                 <p className="mt-2 text-xs text-amber-300">
                   No bookable services are available yet. Add at least one live service from the barber dashboard to enable appointments.
                 </p>
               )}
-            </div>
+            </fieldset>
 
             {staffOptions.length > 0 && (
               <div className="mb-6">
-                <label className="mb-2 block text-sm font-medium text-slate-200">Select Staff Member</label>
+                <label htmlFor="selectedStaffName" className="mb-2 block text-sm font-medium text-slate-200">Select Staff Member</label>
                 <select
+                  id="selectedStaffName"
                   name="selectedStaffName"
                   value={formData.selectedStaffName}
-                  onChange={handleChange}
+                  onChange={handleFormChange}
                   className="theme-select"
                 >
                   <option value="">Any available staff</option>
@@ -287,31 +294,33 @@ const BookAppointment = () => {
 
             <div className="mb-6 grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">Date</label>
+                <label htmlFor="appointmentDate" className="mb-2 block text-sm font-medium text-slate-200">Date</label>
                 <input
+                  id="appointmentDate"
                   type="date"
                   name="appointmentDate"
                   value={formData.appointmentDate}
-                  onChange={handleChange}
+                  onChange={handleFormChange}
                   className="theme-input"
                   required
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">Time</label>
+                <label htmlFor="appointmentTime" className="mb-2 block text-sm font-medium text-slate-200">Time</label>
                 <input
+                  id="appointmentTime"
                   type="time"
                   name="appointmentTime"
                   value={formData.appointmentTime}
-                  onChange={handleChange}
+                  onChange={handleFormChange}
                   className="theme-input"
                   required
                 />
               </div>
             </div>
 
-            <div className="mb-6">
-              <label className="mb-2 block text-sm font-medium text-slate-200">Payment Method</label>
+            <fieldset className="mb-6">
+              <legend className="mb-2 block text-sm font-medium text-slate-200">Payment Method</legend>
               <div className="grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
@@ -339,14 +348,15 @@ const BookAppointment = () => {
               <p className="mt-2 text-xs text-slate-400">
                 Online payment par click karne par Coming Soon page open hoga.
               </p>
-            </div>
+            </fieldset>
 
             <div className="mb-6">
-              <label className="mb-2 block text-sm font-medium text-slate-200">Coupon Code</label>
+              <label htmlFor="couponCode" className="mb-2 block text-sm font-medium text-slate-200">Coupon Code</label>
               <input
+                id="couponCode"
                 name="couponCode"
                 value={formData.couponCode}
-                onChange={handleChange}
+                onChange={handleFormChange}
                 className="theme-input uppercase"
                 placeholder="Enter barber coupon code"
               />
@@ -366,11 +376,12 @@ const BookAppointment = () => {
             </div>
 
             <div className="mb-6">
-              <label className="mb-2 block text-sm font-medium text-slate-200">Notes</label>
+              <label htmlFor="notes" className="mb-2 block text-sm font-medium text-slate-200">Notes</label>
               <textarea
+                id="notes"
                 name="notes"
                 value={formData.notes}
-                onChange={handleChange}
+                onChange={handleFormChange}
                 className="theme-input"
                 rows="4"
                 placeholder="Any special requests..."

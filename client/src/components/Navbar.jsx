@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -16,16 +16,128 @@ const navLinkClass = ({ isActive }) =>
       : "text-slate-300 hover:bg-white/10 hover:text-white"
   }`;
 
-function Navbar() {
+function MobileMenu({ showDashboard, user, onLogout, keyId }) {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user, logout } = useAuth();
-
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  useEffect(() => {
-    setIsMenuOpen(false);
-  }, [location.pathname]);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() =>
+          setIsMenuOpen((prev) => !prev)
+        }
+        className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 md:hidden"
+        aria-label="Menu"
+      >
+        <span className="relative block h-4 w-5">
+          <span
+            className={`absolute left-0 top-0 h-0.5 w-5 bg-current transition-all ${
+              isMenuOpen
+                ? "top-[7px] rotate-45"
+                : ""
+            }`}
+          />
+
+          <span
+            className={`absolute left-0 top-[7px] h-0.5 w-5 bg-current transition-all ${
+              isMenuOpen
+                ? "opacity-0"
+                : ""
+            }`}
+          />
+
+          <span
+            className={`absolute left-0 top-[14px] h-0.5 w-5 bg-current transition-all ${
+              isMenuOpen
+                ? "top-[7px] -rotate-45"
+                : ""
+            }`}
+          />
+        </span>
+      </button>
+
+      <div
+        className={`overflow-hidden transition-all duration-300 md:hidden ${
+          isMenuOpen
+            ? "max-h-[650px] pt-4 opacity-100"
+            : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="space-y-4 rounded-[1.7rem] border border-white/10 bg-slate-900/95 p-4 shadow-2xl shadow-black/30">
+          <div className="grid gap-2">
+            {navLinks.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                className={({ isActive }) =>
+                  `rounded-2xl px-4 py-3 text-sm font-medium transition-all ${
+                    isActive
+                      ? "bg-amber-400 text-slate-950"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  }`
+                }
+              >
+                {link.label}
+              </NavLink>
+            ))}
+          </div>
+
+          {showDashboard && (
+            <button
+              onClick={() =>
+                navigate("/dashboard")
+              }
+              className="w-full rounded-2xl border border-amber-300/30 px-4 py-3 text-left text-sm font-medium text-amber-200 hover:bg-amber-400/10"
+            >
+              Dashboard
+            </button>
+          )}
+
+          {user ? (
+            <div className="space-y-3 border-t border-white/10 pt-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
+                Signed in as {user.name}
+              </div>
+
+              <button
+                onClick={onLogout}
+                className="theme-primary-btn w-full text-sm"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-3 border-t border-white/10 pt-4">
+              <button
+                onClick={() =>
+                  navigate("/login")
+                }
+                className="theme-secondary-btn w-full text-sm"
+              >
+                Login
+              </button>
+
+              <button
+                onClick={() =>
+                  navigate("/register")
+                }
+                className="theme-primary-btn w-full text-sm"
+              >
+                Register
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Navbar() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -34,7 +146,7 @@ function Navbar() {
 
   const showDashboard =
     Boolean(user) &&
-    location.pathname !== "/dashboard";
+    pathname !== "/dashboard";
 
   return (
     <nav className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/90 text-white backdrop-blur-xl">
@@ -132,124 +244,12 @@ function Navbar() {
             )}
           </div>
 
-          {/* MOBILE MENU BUTTON */}
-
-          <button
-            type="button"
-            onClick={() =>
-              setIsMenuOpen((prev) => !prev)
-            }
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 md:hidden"
-            aria-label="Menu"
-          >
-            <span className="relative block h-4 w-5">
-              <span
-                className={`absolute left-0 top-0 h-0.5 w-5 bg-current transition-all ${
-                  isMenuOpen
-                    ? "top-[7px] rotate-45"
-                    : ""
-                }`}
-              />
-
-              <span
-                className={`absolute left-0 top-[7px] h-0.5 w-5 bg-current transition-all ${
-                  isMenuOpen
-                    ? "opacity-0"
-                    : ""
-                }`}
-              />
-
-              <span
-                className={`absolute left-0 top-[14px] h-0.5 w-5 bg-current transition-all ${
-                  isMenuOpen
-                    ? "top-[7px] -rotate-45"
-                    : ""
-                }`}
-              />
-            </span>
-          </button>
-        </div>
-
-        {/* MOBILE MENU */}
-
-        <div
-          className={`overflow-hidden transition-all duration-300 md:hidden ${
-            isMenuOpen
-              ? "max-h-[650px] pt-4 opacity-100"
-              : "max-h-0 opacity-0"
-          }`}
-        >
-          <div className="space-y-4 rounded-[1.7rem] border border-white/10 bg-slate-900/95 p-4 shadow-2xl shadow-black/30">
-            {/* MOBILE LINKS */}
-
-            <div className="grid gap-2">
-              {navLinks.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={({ isActive }) =>
-                    `rounded-2xl px-4 py-3 text-sm font-medium transition-all ${
-                      isActive
-                        ? "bg-amber-400 text-slate-950"
-                        : "text-slate-300 hover:bg-white/5 hover:text-white"
-                    }`
-                  }
-                >
-                  {link.label}
-                </NavLink>
-              ))}
-            </div>
-
-            {/* DASHBOARD */}
-
-            {showDashboard && (
-              <button
-                onClick={() =>
-                  navigate("/dashboard")
-                }
-                className="w-full rounded-2xl border border-amber-300/30 px-4 py-3 text-left text-sm font-medium text-amber-200 hover:bg-amber-400/10"
-              >
-                Dashboard
-              </button>
-            )}
-
-            {/* USER AREA */}
-
-            {user ? (
-              <div className="space-y-3 border-t border-white/10 pt-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
-                  Signed in as {user.name}
-                </div>
-
-                <button
-                  onClick={handleLogout}
-                  className="theme-primary-btn w-full text-sm"
-                >
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <div className="grid gap-3 border-t border-white/10 pt-4">
-                <button
-                  onClick={() =>
-                    navigate("/login")
-                  }
-                  className="theme-secondary-btn w-full text-sm"
-                >
-                  Login
-                </button>
-
-                <button
-                  onClick={() =>
-                    navigate("/register")
-                  }
-                  className="theme-primary-btn w-full text-sm"
-                >
-                  Register
-                </button>
-              </div>
-            )}
-          </div>
+          <MobileMenu
+            key={pathname}
+            showDashboard={showDashboard}
+            user={user}
+            onLogout={handleLogout}
+          />
         </div>
       </div>
     </nav>

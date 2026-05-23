@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
@@ -6,31 +6,35 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const getSavedUser = () => {
     try {
-      return JSON.parse(localStorage.getItem('user') || 'null');
+      const rawUser = localStorage.getItem('user:v1') || localStorage.getItem('user');
+      return JSON.parse(rawUser || 'null');
     } catch {
       return null;
     }
   };
 
-  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const storedLocalToken = localStorage.getItem('token');
+  const storedSessionToken = sessionStorage.getItem('token');
+  const tokenRef = useRef(storedLocalToken || storedSessionToken);
+  const token = tokenRef.current;
   const [user, setUser] = useState(() => getSavedUser());
   const [loading, setLoading] = useState(() => Boolean(token && !getSavedUser()));
   const [error, setError] = useState(null);
 
   const persistUser = (nextUser) => {
     if (nextUser) {
-      localStorage.setItem('user', JSON.stringify(nextUser));
+      localStorage.setItem('user:v1', JSON.stringify(nextUser));
       setUser(nextUser);
       return;
     }
 
-    localStorage.removeItem('user');
+    localStorage.removeItem('user:v1');
     setUser(null);
   };
 
   // Check if saved auth is still valid and sync role from backend profile.
   useEffect(() => {
-    const savedToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const savedToken = token;
 
     const initializeAuth = async () => {
       if (!savedToken) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Cookies from "js-cookie";
 import { Link } from "react-router-dom";
 
@@ -9,6 +9,8 @@ function CookieBanner() {
   const [animate, setAnimate] =
     useState(false);
 
+  const timersRef = useRef([]);
+
   useEffect(() => {
     const consent =
       Cookies.get("cookie_consent");
@@ -16,18 +18,28 @@ function CookieBanner() {
     if (!consent) {
       setShowBanner(true);
 
-      setTimeout(() => {
+      const timerId = window.setTimeout(() => {
         setAnimate(true);
       }, 100);
+
+      timersRef.current.push(timerId);
     }
+
+    return () => {
+      timersRef.current.forEach((timerId) => {
+        clearTimeout(timerId);
+      });
+    };
   }, []);
 
   const closeBanner = () => {
     setAnimate(false);
 
-    setTimeout(() => {
+    const timerId = window.setTimeout(() => {
       setShowBanner(false);
     }, 300);
+
+    timersRef.current.push(timerId);
   };
 
   const handleAcceptAll = () => {

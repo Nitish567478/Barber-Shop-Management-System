@@ -15,12 +15,14 @@ const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
+const getStoredToken = () =>
+  localStorage.getItem('token') ||
+  sessionStorage.getItem('token');
+
 /* Attach Token */
 api.interceptors.request.use(
   (config) => {
-    const token =
-      localStorage.getItem('token') ||
-      sessionStorage.getItem('token');
+    const token = getStoredToken();
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

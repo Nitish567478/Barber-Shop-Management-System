@@ -24,7 +24,7 @@ const Register = () => {
 
   const isBarber = formData.role === 'barber';
 
-  const handleChange = (e) => {
+  const handleFormChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setError('');
@@ -109,23 +109,25 @@ const Register = () => {
 
         <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-200">Name</label>
+            <label htmlFor="name" className="mb-2 block text-sm font-medium text-slate-200">Name</label>
             <input
+              id="name"
               type="text"
               name="name"
               value={formData.name}
-              onChange={handleChange}
+              onChange={handleFormChange}
               className="theme-input"
               required
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-200">I am a:</label>
+            <label htmlFor="role" className="mb-2 block text-sm font-medium text-slate-200">I am a:</label>
             <select
+              id="role"
               name="role"
               value={formData.role}
-              onChange={handleChange}
+              onChange={handleFormChange}
               className="theme-select"
               required
             >
@@ -135,12 +137,13 @@ const Register = () => {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-200">Email</label>
+            <label htmlFor="email" className="mb-2 block text-sm font-medium text-slate-200">Email</label>
             <input
+              id="email"
               type="email"
               name="email"
               value={formData.email}
-              onChange={handleChange}
+              onChange={handleFormChange}
               className={`theme-input ${error.includes('email') || error.includes('already registered') ? 'border-red-500' : ''}`}
               placeholder="Enter your email"
               required
@@ -148,25 +151,27 @@ const Register = () => {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-200">Phone</label>
+            <label htmlFor="phone" className="mb-2 block text-sm font-medium text-slate-200">Phone</label>
             <input
+              id="phone"
               type="tel"
               name="phone"
               value={formData.phone}
-              onChange={handleChange}
+              onChange={handleFormChange}
               className="theme-input"
               required
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-slate-200">Password</label>
+            <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-200">Password</label>
             <div className="relative">
               <input
+                id="password"
                 type={showPassword ? 'text' : 'password'}
                 name="password"
                 value={formData.password}
-                onChange={handleChange}
+                onChange={handleFormChange}
                 className="theme-input pr-12"
                 required
               />
@@ -184,12 +189,13 @@ const Register = () => {
           {isBarber && (
             <>
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">Shop Name</label>
+                <label htmlFor="shopName" className="mb-2 block text-sm font-medium text-slate-200">Shop Name</label>
                 <input
+                  id="shopName"
                   type="text"
                   name="shopName"
                   value={formData.shopName}
-                  onChange={handleChange}
+                  onChange={handleFormChange}
                   className="theme-input"
                   placeholder="Fade House Studio"
                   required
@@ -197,48 +203,52 @@ const Register = () => {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">Experience (years)</label>
+                <label htmlFor="experience" className="mb-2 block text-sm font-medium text-slate-200">Experience (years)</label>
                 <input
+                  id="experience"
                   type="number"
                   min="0"
                   name="experience"
                   value={formData.experience}
-                  onChange={handleChange}
+                  onChange={handleFormChange}
                   className="theme-input"
                   placeholder="5"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">Specialization</label>
+                <label htmlFor="specialization" className="mb-2 block text-sm font-medium text-slate-200">Specialization</label>
                 <input
+                  id="specialization"
                   type="text"
                   name="specialization"
                   value={formData.specialization}
-                  onChange={handleChange}
+                  onChange={handleFormChange}
                   className="theme-input"
                   placeholder="fade, beard styling, grooming"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200">Location</label>
+                <label htmlFor="location" className="mb-2 block text-sm font-medium text-slate-200">Location</label>
                 <input
+                  id="location"
                   type="text"
                   name="location"
                   value={formData.location}
-                  onChange={handleChange}
+                  onChange={handleFormChange}
                   className="theme-input"
                   placeholder="Kolkata, West Bengal"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-slate-200">Professional Bio</label>
+                <label htmlFor="bio" className="mb-2 block text-sm font-medium text-slate-200">Professional Bio</label>
                 <textarea
+                  id="bio"
                   name="bio"
                   value={formData.bio}
-                  onChange={handleChange}
+                  onChange={handleFormChange}
                   className="theme-input"
                   rows="4"
                   placeholder="Tell customers about your style, experience, and signature services."
