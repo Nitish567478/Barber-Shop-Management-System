@@ -33,6 +33,15 @@ export const register = async (req, res, next) => {
 
     console.log('Email is available');
 
+    // Normalize phone: if 10 digits, prepend +91; if already includes country code, keep +
+    let normalizedPhone = phone ? String(phone).trim() : '';
+    normalizedPhone = normalizedPhone.replace(/[^\d+]/g, '');
+    if (normalizedPhone && !normalizedPhone.startsWith('+')) {
+      const digits = normalizedPhone.replace(/^0+/, '');
+      if (digits.length === 10) normalizedPhone = `+91${digits}`;
+      else normalizedPhone = `+${digits}`;
+    }
+
     // Hash password
     const hashedPassword = await hashPassword(password);
 
@@ -41,7 +50,7 @@ export const register = async (req, res, next) => {
       name,
       email,
       password: hashedPassword,
-      phone,
+      phone: normalizedPhone,
       role: role || 'customer',
     });
 
@@ -248,9 +257,17 @@ export const updateUserProfile = async (req, res, next) => {
   try {
     const { name, phone, profilePicture } = req.body;
 
+    let normalizedPhone = phone ? String(phone).trim() : '';
+    normalizedPhone = normalizedPhone.replace(/[^\d+]/g, '');
+    if (normalizedPhone && !normalizedPhone.startsWith('+')) {
+      const digits = normalizedPhone.replace(/^0+/, '');
+      if (digits.length === 10) normalizedPhone = `+91${digits}`;
+      else normalizedPhone = `+${digits}`;
+    }
+
     const user = await User.findByIdAndUpdate(
       req.user.userId,
-      { name, phone, profilePicture },
+      { name, phone: normalizedPhone, profilePicture },
       { new: true, runValidators: true }
     );
 

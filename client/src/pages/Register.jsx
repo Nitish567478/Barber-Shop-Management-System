@@ -30,6 +30,14 @@ const Register = () => {
     setError('');
   };
 
+  const handlePhoneBlur = (e) => {
+    const value = String(e.target.value || '').trim();
+    const digits = value.replace(/[^\d]/g, '');
+    if (digits.length === 10 && !value.startsWith('+')) {
+      setFormData((prev) => ({ ...prev, phone: `+91${digits}` }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -158,6 +166,7 @@ const Register = () => {
               name="phone"
               value={formData.phone}
               onChange={handleFormChange}
+              onBlur={handlePhoneBlur}
               className="theme-input"
               required
             />

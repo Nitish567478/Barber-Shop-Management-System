@@ -34,6 +34,14 @@ const ProfilePage = () => {
     setError('');
   };
 
+  const handlePhoneBlur = (e) => {
+    const value = String(e.target.value || '').trim();
+    const digits = value.replace(/[^\d]/g, '');
+    if (digits.length === 10 && !value.startsWith('+')) {
+      setFormData((prev) => ({ ...prev, phone: `+91${digits}` }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -44,7 +52,7 @@ const ProfilePage = () => {
       const response = await authAPI.updateProfile(formData);
       updateUser(response.data.user);
       setSuccess('Profile updated successfully!');
-      setTimeout(() => navigate('/dashboard'), 2000);
+      setTimeout(() => navigate('/dashboard'), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update profile');
     } finally {
@@ -127,6 +135,7 @@ const ProfilePage = () => {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
+                onBlur={handlePhoneBlur}
                 className="theme-input w-full"
                 required
               />

@@ -16,7 +16,26 @@ export const validateRegister = [
   body('password')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters'),
-  body('phone').notEmpty().withMessage('Phone number is required'),
+  body('phone')
+    .notEmpty()
+    .withMessage('Phone number is required')
+    .bail()
+    .custom((value) => {
+      // allow formats like 9876543210 or +919876543210
+      const normalized = String(value).replace(/[^\d+]/g, '');
+      const pure = normalized.replace(/^\+/, '');
+      if (!/^[0-9]{10,12}$/.test(pure)) {
+        throw new Error('Phone must be 10 digits (with optional country code)');
+      }
+      // if a country code exists, ensure it is +91 or length matches
+      if (pure.length === 11 && !pure.startsWith('91')) {
+        throw new Error('Invalid country code, expected +91 for 11-digit numbers');
+      }
+      if (pure.length > 12) {
+        throw new Error('Phone number too long');
+      }
+      return true;
+    }),
 ];
 
 export const validateLogin = [
