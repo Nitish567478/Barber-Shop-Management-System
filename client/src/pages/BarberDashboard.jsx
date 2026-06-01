@@ -4,6 +4,7 @@ import { appointmentsAPI, barbersAPI, couponsAPI, servicesAPI } from '../service
 import { Moon, Power, Star, Sun, Sunrise, X } from 'lucide-react';
 
 import BarberShopLoader from '../components/BarberShopLoader';
+import ShopImageSlider from '../components/ShopImageSlider';
 
 const emptyServiceForm = {
   name: '',
@@ -103,7 +104,8 @@ const BarberDashboard = () => {
     specialization: '',
     location: '',
     bio: '',
-    shopImage: '',
+    // newline or comma separated list of image URLs (1-5)
+    shopImages: '',
     openingTime: '09:00',
     closingTime: '18:00',
     isActive: true,
@@ -134,7 +136,11 @@ const BarberDashboard = () => {
       specialization: (nextProfile.specialization || []).join(', '),
       location: nextProfile.location || '',
       bio: nextProfile.bio || '',
-      shopImage: nextProfile.shopImage || '',
+      shopImages: Array.isArray(nextProfile.shopImages)
+        ? nextProfile.shopImages.join('\n')
+        : nextProfile.shopImage
+        ? String(nextProfile.shopImage)
+        : '',
       openingTime: nextProfile.openingTime || '09:00',
       closingTime: nextProfile.closingTime || '18:00',
       isActive: nextProfile.isActive !== false,
@@ -227,10 +233,18 @@ const BarberDashboard = () => {
     try {
       setSavingProfile(true);
       clearBanner();
+      const shopImagesPayload = profileForm.shopImages
+        ? profileForm.shopImages
+            .split(/\r?\n|,/) // allow newline or comma separated
+            .map((s) => String(s).trim())
+            .filter(Boolean)
+            .slice(0, 5)
+        : [];
+
       const response = await barbersAPI.updateMine({
         ...profileForm,
         experience: Number(profileForm.experience) || 0,
-        shopImage: profileForm.shopImage.trim(),
+        shopImages: shopImagesPayload,
       });
       const nextProfile = response.data.barber;
       setProfile(nextProfile);
@@ -420,7 +434,13 @@ const BarberDashboard = () => {
     ? reviews.reduce((sum, booking) => sum + Number(booking.feedback?.rating || 0), 0) / reviews.length
     : 0;
   const totalRevenue = completedBookings.reduce((sum, booking) => sum + (booking.price || 0), 0);
-  const previewImage = profileForm.shopImage || profile?.shopImage || defaultShopPreview;
+  const previewImages = profileForm.shopImages
+    ? profileForm.shopImages.split(/\r?\n|,/).map((s) => s.trim()).filter(Boolean).slice(0,5)
+    : Array.isArray(profile?.shopImages) && profile.shopImages.length > 0
+    ? profile.shopImages
+    : profile?.shopImage
+    ? [profile.shopImage]
+    : [defaultShopPreview];
   const suspensionLabel = getSuspensionLabel(profile);
   const greeting = getGreeting();
   const GreetingIcon = greeting.Icon;
@@ -635,7 +655,7 @@ const BarberDashboard = () => {
               </div>
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-slate-200">Shop Photo URL</label>
-                <input name="shopImage" value={profileForm.shopImage} onChange={handleProfileChange} className="theme-input" placeholder="https://example.com/barber-shop.jpg" />
+                      <textarea name="shopImages" value={profileForm.shopImages} onChange={handleProfileChange} className="theme-input h-24" placeholder="Enter 1-5 image URLs (newline or comma separated)" />
                 <p className="mt-2 text-xs text-slate-400"> Use this link for image URLs:{' '}
                   <a
                     href="https://image-to-url-iota.vercel.app/"
@@ -702,14 +722,7 @@ const BarberDashboard = () => {
             </div>
 
             <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-900/70">
-              <img
-                src={previewImage}
-                alt={profileForm.shopName || 'Barber shop preview'}
-                className="h-56 w-full object-cover"
-                onError={(event) => {
-                  event.currentTarget.src = defaultShopPreview;
-                }}
-              />
+              <ShopImageSlider images={previewImages} className="h-56" />
               <div className="p-6">
                 <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Public Profile Preview</p>
                 <h3 className="mt-3 text-2xl font-semibold text-white">{profileForm.shopName || 'Your shop name'}</h3>

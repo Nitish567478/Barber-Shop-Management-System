@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ShopImageSlider from '../components/ShopImageSlider';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { barbersAPI, servicesAPI } from '../services/api';
@@ -185,13 +186,17 @@ const HomePage = () => {
                 >
                   {/* IMAGE */}
                   <div className="relative h-72 overflow-hidden">
-                    <img
-                      src={barber.shopImage || barber.userId?.image || 'https://i.ibb.co/rGmYkXb/barber-placeholder.jpg'}
-                      alt={barber.shopName || barber.userId?.name || 'Barber'}
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
-                      onError={(event) => {
-                        event.currentTarget.src = 'https://i.ibb.co/rGmYkXb/barber-placeholder.jpg';
-                      }}
+                    <ShopImageSlider
+                      images={
+                        Array.isArray(barber.shopImages) && barber.shopImages.length > 0
+                          ? barber.shopImages
+                          : barber.shopImage
+                          ? [barber.shopImage]
+                          : barber.userId?.image
+                          ? [barber.userId.image]
+                          : []
+                      }
+                      className="h-full"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/10 to-transparent" />
 

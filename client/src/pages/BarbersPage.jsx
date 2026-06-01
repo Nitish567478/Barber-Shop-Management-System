@@ -6,6 +6,7 @@ import { isValidObjectId } from '../utils/objectId';
 
 
 import BarberShopLoader from "../components/BarberShopLoader";
+import ShopImageSlider from '../components/ShopImageSlider';
 
 const barberVisuals = [
   'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=1200&q=80',
@@ -108,7 +109,11 @@ const BarbersPage = () => {
             {displayedBarbers.map((barber, index) => {
               const specializations = normalizeSpecializations(barber.specialization);
               const experience = getExperience(barber);
-              const cardImage = barber.shopImage || barberVisuals[index % barberVisuals.length];
+              const cardImages = Array.isArray(barber.shopImages) && barber.shopImages.length > 0
+                ? barber.shopImages
+                : barber.shopImage
+                ? [barber.shopImage]
+                : [barberVisuals[index % barberVisuals.length]];
 
               return (
                 <div
@@ -116,13 +121,9 @@ const BarbersPage = () => {
                   className="overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/10 to-white/5 shadow-xl shadow-black/10 transition hover:-translate-y-1 hover:border-amber-400/40"
                 >
                   <div className="relative h-56 overflow-hidden">
-                    <img
-                      src={cardImage}
-                      alt={barber.shopName || barber.userId?.name || 'Barber'}
-                      className="h-full w-full object-cover"
-                      onError={(event) => {
-                        event.currentTarget.src = barberVisuals[index % barberVisuals.length];
-                      }}
+                    <ShopImageSlider
+                      images={cardImages}
+                      className="h-full"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
                     <div className="absolute bottom-4 left-4">

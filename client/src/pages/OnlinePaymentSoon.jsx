@@ -11,8 +11,8 @@ const OnlinePaymentSoon = ({loading}) => {
       </div>
     );
   }
-
-  <div className="theme-page">
+  return (
+    <div className="theme-page">
     <main className="theme-shell max-w-3xl">
       <div className="theme-card py-16 text-center">
         <p className="theme-subtitle">Coming Soon..</p>
@@ -25,7 +25,8 @@ const OnlinePaymentSoon = ({loading}) => {
         </Link>
       </div>
     </main>
-  </div>
+    </div>
+  );
 };
 
 export default OnlinePaymentSoon;

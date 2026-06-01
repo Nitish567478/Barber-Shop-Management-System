@@ -90,7 +90,7 @@ export const addBarber = async (req, res, next) => {
       shopName,
       bio,
       location,
-      shopImage,
+      shopImages,
       openingTime,
       closingTime,
       staffMembers,
@@ -114,7 +114,7 @@ export const addBarber = async (req, res, next) => {
       shopName: shopName || '',
       bio: bio || '',
       location: location || '',
-      shopImage: shopImage || '',
+      shopImages: Array.isArray(shopImages) ? shopImages.slice(0,5) : (shopImages ? [shopImages].slice(0,5) : []),
       openingTime: openingTime || '09:00',
       closingTime: closingTime || '18:00',
       staffMembers: Array.isArray(staffMembers) ? staffMembers : [],
@@ -146,7 +146,7 @@ export const updateBarber = async (req, res, next) => {
       shopName,
       bio,
       location,
-      shopImage,
+      shopImages,
       openingTime,
       closingTime,
       listingStatus,
@@ -283,8 +283,15 @@ export const updateMyBarberProfile = async (req, res, next) => {
     if (isOpen !== undefined) {
       updates.isOpen = Boolean(isOpen);
     }
-    if (shopImage !== undefined) {
-      updates.shopImage = shopImage;
+    if (shopImages !== undefined) {
+      // Normalize to array and limit to 5 items
+      updates.shopImages = Array.isArray(shopImages)
+        ? shopImages.map(String).map(s => s.trim()).filter(Boolean).slice(0,5)
+        : String(shopImages || '')
+            .split(/\r?\n|,/) // allow comma or newline separated input
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .slice(0,5);
     }
     if (openingTime !== undefined) {
       updates.openingTime = openingTime;

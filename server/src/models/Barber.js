@@ -36,10 +36,17 @@ const barberSchema = new mongoose.Schema(
       maxLength: [150, 'Location cannot exceed 150 characters'],
       default: '',
     },
-    shopImage: {
-      type: String,
-      trim: true,
-      default: '',
+    // Support multiple shop images (1-5) for sliders and galleries
+    shopImages: {
+      type: [String],
+      validate: {
+        validator: function (arr) {
+          if (!arr) return true;
+          return Array.isArray(arr) && arr.length <= 5;
+        },
+        message: 'shopImages must be an array with maximum 5 items',
+      },
+      default: [],
     },
     openingTime: {
       type: String,
