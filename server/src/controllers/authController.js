@@ -120,6 +120,10 @@ export const login = async (req, res, next) => {
     const { email, password } = req.body;
     console.log('Login attempt for:', email);
 
+    if (!email || !password) {
+      throw new AppError('Email and password are required', 400);
+    }
+
     // Find user by email
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
@@ -129,8 +133,9 @@ export const login = async (req, res, next) => {
 
     console.log('User found:', email);
 
-    // Compare password
-    const isPasswordValid = await comparePassword(password, user.password);
+    // Compare password safely even if the record lacks a hashed password
+    const hashedPassword = String(user.password || '');
+    const isPasswordValid = await comparePassword(password, hashedPassword);
     if (!isPasswordValid) {
       console.log('Invalid password for:', email);
       throw new AppError('Invalid email or password', 401);
