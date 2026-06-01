@@ -18,7 +18,13 @@ const navLinkClass = ({ isActive }) =>
 
 function MobileMenu({ showDashboard, user, onLogout, keyId }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Close mobile menu automatically on route change
+  React.useEffect(() => {
+    setIsMenuOpen(false);
+  }, [pathname]);
 
   return (
     <>
@@ -27,6 +33,7 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
         onClick={() =>
           setIsMenuOpen((prev) => !prev)
         }
+        aria-expanded={isMenuOpen}
         className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 md:hidden"
         aria-label="Menu"
       >
@@ -77,17 +84,20 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
                       : "text-slate-300 hover:bg-white/5 hover:text-white"
                   }`
                 }
+                  onClick={() => setIsMenuOpen(false)}
               >
                 {link.label}
               </NavLink>
             ))}
           </div>
 
-          {showDashboard && (
-            <button
-              onClick={() =>
-                navigate("/dashboard")
-              }
+            {showDashboard && (
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  navigate("/dashboard");
+                }
+                }
               className="w-full rounded-2xl border border-amber-300/30 px-4 py-3 text-left text-sm font-medium text-amber-200 hover:bg-amber-400/10"
             >
               Dashboard
@@ -101,7 +111,10 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
               </div>
 
               <button
-                onClick={onLogout}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onLogout();
+                }}
                 className="theme-primary-btn w-full text-sm"
               >
                 Logout
@@ -111,7 +124,7 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
             <div className="grid gap-3 border-t border-white/10 pt-4">
               <button
                 onClick={() =>
-                  navigate("/login")
+                  (setIsMenuOpen(false), navigate("/login"))
                 }
                 className="theme-secondary-btn w-full text-sm"
               >
@@ -120,7 +133,7 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
 
               <button
                 onClick={() =>
-                  navigate("/register")
+                  (setIsMenuOpen(false), navigate("/register"))
                 }
                 className="theme-primary-btn w-full text-sm"
               >
