@@ -192,15 +192,15 @@ const HomePage = () => {
                       alt={barber.shopName || barber.userId?.name || 'Barber'}
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/10 to-transparent" />
+                    <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-slate-950 via-slate-950/10 to-transparent" />
 
-                    <div className="absolute left-4 top-4">
+                    <div className="absolute left-4 top-4 z-20">
                       <span className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-semibold text-slate-950">
                         Available
                       </span>
                     </div>
 
-                    <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3">
+                    <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between gap-3">
                       <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white backdrop-blur">
                         {Array.isArray(barber.specialization) ? barber.specialization[0] : (barber.specialization || 'Specialist')}
 

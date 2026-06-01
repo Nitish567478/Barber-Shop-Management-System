@@ -48,7 +48,7 @@ const ShopImageSlider = ({
         }}
       />
       {showDots && sliderImages.length > 1 && (
-        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 rounded-full bg-slate-950/60 px-3 py-2 backdrop-blur">
+        <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 gap-1.5 rounded-full bg-slate-950/60 px-3 py-2 backdrop-blur">
           {sliderImages.map((image, index) => (
             <button
               key={`${image}-${index}`}

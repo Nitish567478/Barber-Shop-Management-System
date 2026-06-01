@@ -121,8 +121,8 @@ const BarbersPage = () => {
                       alt={barber.shopName || barber.userId?.name || 'Barber'}
                       className="h-full w-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
-                    <div className="absolute bottom-4 left-4">
+                    <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
+                    <div className="pointer-events-none absolute bottom-4 left-4 z-10">
                       <span className="rounded-full bg-amber-400 px-3 py-1 text-xs font-semibold text-slate-950">
                         Verified stylist
                       </span>
