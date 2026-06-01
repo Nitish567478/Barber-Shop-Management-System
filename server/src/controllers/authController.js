@@ -164,7 +164,13 @@ export const forgotPassword = async (req, res, next) => {
       const rawToken = crypto.randomBytes(32).toString('hex');
       const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-      const resetUrl = `${config.frontendUrl}/reset-password/${rawToken}`;
+      // Prefer configured FRONTEND_URL in production; if it points to localhost
+      // (likely a leftover dev value) fall back to request origin or host.
+      const frontendBase =
+        config.frontendUrl && !/localhost|127\.0\.0\.1/.test(config.frontendUrl)
+          ? config.frontendUrl
+          : (req.headers.origin || `${req.protocol}://${req.get('host')}`);
+      const resetUrl = `${frontendBase.replace(/\/+$/, '')}/reset-password/${rawToken}`;
 
       user.passwordResetToken = hashedToken;
       user.passwordResetExpires = expiresAt;
