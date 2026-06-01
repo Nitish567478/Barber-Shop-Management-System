@@ -8,7 +8,7 @@ const Register = () => {
     name: '',
     email: '',
     password: '',
-    phone: '',
+    phone: '+91',
     role: 'customer',
     shopName: '',
     experience: '',
@@ -26,7 +26,11 @@ const Register = () => {
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const nextValue =
+      name === 'phone'
+        ? `+91${value.replace(/\D/g, '').replace(/^91/, '').slice(0, 10)}`
+        : value;
+    setFormData((prev) => ({ ...prev, [name]: nextValue }));
     setError('');
   };
 
@@ -42,6 +46,12 @@ const Register = () => {
         phone: formData.phone,
         role: formData.role,
       };
+
+      if (!/^\+91\d{10}$/.test(payload.phone)) {
+        setError('Phone number must start with +91 and contain exactly 10 digits after it.');
+        setLoading(false);
+        return;
+      }
 
       if (isBarber) {
         payload.shopName = formData.shopName;
@@ -117,8 +127,12 @@ const Register = () => {
               value={formData.name}
               onChange={handleFormChange}
               className="theme-input"
+              pattern="^\+91\d{10}$"
+              maxLength={13}
+              placeholder="+919876543210"
               required
             />
+            <p className="mt-2 text-xs text-slate-400">Use +91 followed by exactly 10 digits.</p>
           </div>
 
           <div>

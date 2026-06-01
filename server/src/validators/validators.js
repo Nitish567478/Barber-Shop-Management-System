@@ -1,6 +1,7 @@
 import { body, validationResult } from 'express-validator';
 
 const objectIdPattern = /^[a-f\d]{24}$/i;
+const indianPhonePattern = /^\+91\d{10}$/;
 
 export const validate = (req, res, next) => {
   const errors = validationResult(req);
@@ -16,7 +17,9 @@ export const validateRegister = [
   body('password')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters'),
-  body('phone').notEmpty().withMessage('Phone number is required'),
+  body('phone')
+    .matches(indianPhonePattern)
+    .withMessage('Phone number must start with +91 and contain exactly 10 digits after it'),
 ];
 
 export const validateLogin = [

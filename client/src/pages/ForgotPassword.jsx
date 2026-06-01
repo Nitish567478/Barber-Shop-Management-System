@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 
@@ -25,6 +25,18 @@ const ForgotPassword = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!error && !message) return undefined;
+
+    const timerId = window.setTimeout(() => {
+      setError('');
+      setMessage('');
+      setPreviewUrl('');
+    }, 3000);
+
+    return () => window.clearTimeout(timerId);
+  }, [error, message]);
 
   return (
     <div className="theme-page flex items-center justify-center px-6 py-10">

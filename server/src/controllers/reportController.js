@@ -100,6 +100,10 @@ export const verifyReport = async (req, res, next) => {
       throw new AppError('Report not found', 404);
     }
 
+    if (report.status !== 'open') {
+      throw new AppError('This report has already been reviewed', 409);
+    }
+
     if (!['verified', 'rejected', 'resolved'].includes(status)) {
       throw new AppError('Invalid report status', 400);
     }

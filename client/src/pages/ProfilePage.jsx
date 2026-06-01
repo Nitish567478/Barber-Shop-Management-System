@@ -4,6 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import BarberShopLoader from "../components/BarberShopLoader";
 
+const normalizeIndianPhone = (value) =>
+  `+91${String(value || '').replace(/\D/g, '').replace(/^91/, '').slice(0, 10)}`;
+
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
@@ -22,7 +25,7 @@ const ProfilePage = () => {
       setFormData({
         name: user.name || '',
         email: user.email || '',
-        phone: user.phone || '',
+        phone: user.phone || '+91',
         profilePicture: user.profilePicture || '',
       });
     }
@@ -30,7 +33,7 @@ const ProfilePage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: name === 'phone' ? normalizeIndianPhone(value) : value }));
     setError('');
   };
 
@@ -41,16 +44,33 @@ const ProfilePage = () => {
     setSuccess('');
 
     try {
+      if (!/^\+91\d{10}$/.test(formData.phone)) {
+        setError('Phone number must start with +91 and contain exactly 10 digits after it.');
+        setLoading(false);
+        return;
+      }
+
       const response = await authAPI.updateProfile(formData);
       updateUser(response.data.user);
       setSuccess('Profile updated successfully!');
-      setTimeout(() => navigate('/dashboard'), 2000);
+      setTimeout(() => navigate('/dashboard'), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!error && !success) return undefined;
+
+    const timerId = window.setTimeout(() => {
+      setError('');
+      setSuccess('');
+    }, 3000);
+
+    return () => window.clearTimeout(timerId);
+  }, [error, success]);
 
   if (loading) {
     return (
@@ -110,7 +130,16 @@ const ProfilePage = () => {
                 className="theme-input w-full"
                 placeholder="https://example.com/profile.jpg"
               />
-              <p className="mt-2 text-xs text-slate-400">Paste an image URL to show your photo on dashboards.</p>
+              <p className="mt-2 text-xs text-slate-400"> Use this link for image URLs:{' '}
+                <a
+                  href="https://image-to-url-iota.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-400 hover:underline"
+                >
+                Image to URL Converter
+                </a> Add profile image URLs.
+              </p>
             </div>
 
             {formData.profilePicture && (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { authAPI } from '../services/api';
 
@@ -30,6 +30,13 @@ const ResetPassword = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!error) return undefined;
+
+    const timerId = window.setTimeout(() => setError(''), 3000);
+    return () => window.clearTimeout(timerId);
+  }, [error]);
 
   return (
     <div className="theme-page flex items-center justify-center px-6 py-10">

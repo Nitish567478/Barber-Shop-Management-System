@@ -30,6 +30,25 @@ const getServiceList = (appointment) => {
   return appointment.serviceId ? [appointment.serviceId] : [];
 };
 
+const timeToMinutes = (time = '') => {
+  const [hours, minutes] = String(time).split(':').map((value) => Number(value));
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null;
+  }
+
+  return hours * 60 + minutes;
+};
+
+const slotsOverlap = (startA, durationA, startB, durationB) => {
+  const minutesA = timeToMinutes(startA);
+  const minutesB = timeToMinutes(startB);
+  if (minutesA === null || minutesB === null) {
+    return startA === startB;
+  }
+
+  return minutesA < minutesB + Number(durationB || 30) && minutesB < minutesA + Number(durationA || 30);
+};
+
 // Get all appointments
 export const getAllAppointments = async (req, res, next) => {
   try {
@@ -88,6 +107,9 @@ export const createAppointment = async (req, res, next) => {
     if (services.length !== serviceIds.length) {
       throw new AppError('One or more selected services are not available', 404);
     }
+
+    const totalDuration = services.reduce((sum, service) => sum + (service.duration || 0), 0);
+    const totalPrice = services.reduce((sum, service) => sum + (service.price || 0), 0);
 
     const serviceBarberIds = [
       ...new Set(
@@ -153,26 +175,34 @@ export const createAppointment = async (req, res, next) => {
       slotStart.setHours(0, 0, 0, 0);
       slotEnd.setHours(23, 59, 59, 999);
 
-      const existingAppointments = await Appointment.countDocuments({
+      const existingAppointments = await Appointment.find({
         barberId: assignedBarberId,
         appointmentDate: {
           $gte: slotStart,
           $lte: slotEnd,
         },
-        appointmentTime,
         status: 'scheduled',
-      });
+      }).select('appointmentTime duration selectedStaffName');
 
-      if (existingAppointments >= (barberProfile.slotCapacity || 3)) {
+      const overlappingAppointments = existingAppointments.filter((appointment) =>
+        slotsOverlap(appointment.appointmentTime, appointment.duration, appointmentTime, totalDuration)
+      );
+
+      if (overlappingAppointments.length >= (barberProfile.slotCapacity || 1)) {
         throw new AppError(
           'This time slot is sold out. Please choose another time.',
           409
         );
       }
+
+      if (
+        selectedStaffName &&
+        overlappingAppointments.some((appointment) => appointment.selectedStaffName === selectedStaffName)
+      ) {
+        throw new AppError('This staff member is already booked for that time. Please choose another staff or time.', 409);
+      }
     }
 
-    const totalDuration = services.reduce((sum, service) => sum + (service.duration || 0), 0);
-    const totalPrice = services.reduce((sum, service) => sum + (service.price || 0), 0);
     let finalPrice = totalPrice;
     let discountAmount = 0;
     let coupon = null;

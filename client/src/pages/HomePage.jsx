@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { barbersAPI, servicesAPI } from '../services/api';
 import { fallbackServices } from '../data/featuredServices';
 import { fallbackBarbers } from '../data/featuredBarbers';
+import ShopImageSlider from '../components/ShopImageSlider';
 
 const heroImage = 'https://i.ibb.co/rfkJrsqc/handsome-man-cutting-beard-barber-shop-salon.jpg';
 const interiorImage = 'https://img.freepik.com/free-photo/hairstylist-washing-client-s-hair-salon_23-2148242852.jpg?ga=GA1.1.1764038526.1777014227&semt=ais_hybrid&w=740&q=80';
@@ -185,13 +186,11 @@ const HomePage = () => {
                 >
                   {/* IMAGE */}
                   <div className="relative h-72 overflow-hidden">
-                    <img
-                      src={barber.shopImage || barber.userId?.image || 'https://i.ibb.co/rGmYkXb/barber-placeholder.jpg'}
+                    <ShopImageSlider
+                      images={barber.shopImages?.length ? barber.shopImages : [barber.shopImage]}
+                      fallbackImage={barber.userId?.image || 'https://i.ibb.co/rGmYkXb/barber-placeholder.jpg'}
                       alt={barber.shopName || barber.userId?.name || 'Barber'}
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
-                      onError={(event) => {
-                        event.currentTarget.src = 'https://i.ibb.co/rGmYkXb/barber-placeholder.jpg';
-                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/10 to-transparent" />
 

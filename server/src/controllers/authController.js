@@ -6,6 +6,29 @@ import { sendPasswordResetEmail } from '../utils/email.js';
 import crypto from 'crypto';
 import { config } from '../config/config.js';
 
+const normalizePhone = (phone = '') => {
+  const digits = String(phone).replace(/\D/g, '');
+  const localNumber = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+  return localNumber ? `+91${localNumber.slice(0, 10)}` : '';
+};
+
+const getFrontendUrl = (req) => {
+  const requestOrigin = String(req.get('origin') || '').replace(/\/+$/, '');
+  if (config.allowedFrontendUrls.includes(requestOrigin)) {
+    return requestOrigin;
+  }
+
+  return config.frontendUrl.replace(/\/+$/, '');
+};
+
+const isLocalUrl = (value) => {
+  try {
+    return ['localhost', '127.0.0.1'].includes(new URL(value).hostname);
+  } catch {
+    return false;
+  }
+};
+
 // Register user
 export const register = async (req, res, next) => {
   try {
@@ -41,7 +64,7 @@ export const register = async (req, res, next) => {
       name,
       email,
       password: hashedPassword,
-      phone,
+      phone: normalizePhone(phone),
       role: role || 'customer',
     });
 
@@ -164,11 +187,11 @@ export const forgotPassword = async (req, res, next) => {
       const rawToken = crypto.randomBytes(32).toString('hex');
       const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-      const resetUrl = `${config.frontendUrl}/reset-password/${rawToken}`;
+      const resetUrl = `${getFrontendUrl(req)}/reset-password/${rawToken}`;
 
       user.passwordResetToken = hashedToken;
       user.passwordResetExpires = expiresAt;
-      await user.save();
+      await user.save({ validateModifiedOnly: true });
 
       const delivery = await sendPasswordResetEmail({
         to: user.email,
@@ -179,7 +202,7 @@ export const forgotPassword = async (req, res, next) => {
       return res.json({
         success: true,
         message: 'If the email exists in our system, a reset link has been sent.',
-        ...(delivery.delivered === false && config.nodeEnv !== 'production'
+        ...(delivery.delivered === false && config.nodeEnv !== 'production' && isLocalUrl(resetUrl)
           ? { previewUrl: resetUrl }
           : {}),
       });
@@ -209,7 +232,7 @@ export const resetPassword = async (req, res, next) => {
     user.password = await hashPassword(req.body.password);
     user.passwordResetToken = null;
     user.passwordResetExpires = null;
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
 
     res.json({
       success: true,
@@ -241,10 +264,15 @@ export const getUserProfile = async (req, res, next) => {
 export const updateUserProfile = async (req, res, next) => {
   try {
     const { name, phone, profilePicture } = req.body;
+    const normalizedPhone = normalizePhone(phone);
+
+    if (!/^\+91\d{10}$/.test(normalizedPhone)) {
+      throw new AppError('Phone number must start with +91 and contain exactly 10 digits after it', 400);
+    }
 
     const user = await User.findByIdAndUpdate(
       req.user.userId,
-      { name, phone, profilePicture },
+      { name, phone: normalizedPhone, profilePicture },
       { new: true, runValidators: true }
     );
 

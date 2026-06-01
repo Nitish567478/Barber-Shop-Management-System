@@ -6,14 +6,15 @@ import { isValidObjectId } from '../utils/objectId';
 
 
 import BarberShopLoader from "../components/BarberShopLoader";
+import ShopImageSlider from '../components/ShopImageSlider';
 
 const barberVisuals = [
-  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1506277886164-e25aa3f4ef7f?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1546961329-78bef0414d7c?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=640&q=60',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=640&q=60',
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=640&q=60',
+  'https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=640&q=60',
+  'https://images.unsplash.com/photo-1506277886164-e25aa3f4ef7f?auto=format&fit=crop&w=640&q=60',
+  'https://images.unsplash.com/photo-1546961329-78bef0414d7c?auto=format&fit=crop&w=640&q=60',
 ];
 
 const normalizeSpecializations = (specialization) => {
@@ -108,21 +109,17 @@ const BarbersPage = () => {
             {displayedBarbers.map((barber, index) => {
               const specializations = normalizeSpecializations(barber.specialization);
               const experience = getExperience(barber);
-              const cardImage = barber.shopImage || barberVisuals[index % barberVisuals.length];
-
               return (
                 <div
                   key={barber._id}
                   className="overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/10 to-white/5 shadow-xl shadow-black/10 transition hover:-translate-y-1 hover:border-amber-400/40"
                 >
                   <div className="relative h-56 overflow-hidden">
-                    <img
-                      src={cardImage}
+                    <ShopImageSlider
+                      images={barber.shopImages?.length ? barber.shopImages : [barber.shopImage]}
+                      fallbackImage={barberVisuals[index % barberVisuals.length]}
                       alt={barber.shopName || barber.userId?.name || 'Barber'}
                       className="h-full w-full object-cover"
-                      onError={(event) => {
-                        event.currentTarget.src = barberVisuals[index % barberVisuals.length];
-                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
                     <div className="absolute bottom-4 left-4">

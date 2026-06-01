@@ -41,6 +41,14 @@ const barberSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    shopImages: {
+      type: [String],
+      validate: {
+        validator: (value) => !value || value.length <= 5,
+        message: 'You can add up to 5 shop images',
+      },
+      default: [],
+    },
     openingTime: {
       type: String,
       default: '09:00',
@@ -63,7 +71,7 @@ const barberSchema = new mongoose.Schema(
     },
     slotCapacity: {
       type: Number,
-      default: 3,
+      default: 1,
       min: 1,
       max: 20,
     },

@@ -9,6 +9,14 @@ const publicBarberFilters = {
   $or: [{ listingStatus: 'approved' }, { listingStatus: { $exists: false } }],
 };
 
+const normalizeShopImages = (shopImage, shopImages) => {
+  const values = Array.isArray(shopImages) ? shopImages : [shopImage];
+  return values
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .slice(0, 5);
+};
+
 // Get all barbers
 export const getAllBarbers = async (req, res, next) => {
   try {
@@ -18,6 +26,7 @@ export const getAllBarbers = async (req, res, next) => {
     );
 
     const barbers = await Barber.find(publicBarberFilters)
+      .select('userId shopName bio location shopImage shopImages openingTime closingTime specialization staffMembers slotCapacity experience rating')
       .populate('userId', 'name email phone')
       .sort({ createdAt: -1 });
 
@@ -91,6 +100,7 @@ export const addBarber = async (req, res, next) => {
       bio,
       location,
       shopImage,
+      shopImages,
       openingTime,
       closingTime,
       staffMembers,
@@ -114,11 +124,12 @@ export const addBarber = async (req, res, next) => {
       shopName: shopName || '',
       bio: bio || '',
       location: location || '',
-      shopImage: shopImage || '',
+      shopImage: normalizeShopImages(shopImage, shopImages)[0] || '',
+      shopImages: normalizeShopImages(shopImage, shopImages),
       openingTime: openingTime || '09:00',
       closingTime: closingTime || '18:00',
       staffMembers: Array.isArray(staffMembers) ? staffMembers : [],
-      slotCapacity: Number(slotCapacity) || 3,
+      slotCapacity: Number(slotCapacity) || Math.max(1, Array.isArray(staffMembers) ? staffMembers.length : 1),
     });
 
     await barber.save();
@@ -147,6 +158,7 @@ export const updateBarber = async (req, res, next) => {
       bio,
       location,
       shopImage,
+      shopImages,
       openingTime,
       closingTime,
       listingStatus,
@@ -154,6 +166,14 @@ export const updateBarber = async (req, res, next) => {
       staffMembers,
       slotCapacity,
     } = req.body;
+
+    const imageUpdates =
+      shopImage !== undefined || shopImages !== undefined
+        ? {
+            shopImage: normalizeShopImages(shopImage, shopImages)[0] || '',
+            shopImages: normalizeShopImages(shopImage, shopImages),
+          }
+        : {};
 
     const barber = await Barber.findByIdAndUpdate(
       req.params.id,
@@ -166,7 +186,7 @@ export const updateBarber = async (req, res, next) => {
         shopName,
         bio,
         location,
-        shopImage,
+        ...imageUpdates,
         openingTime,
         closingTime,
         listingStatus,
@@ -244,6 +264,7 @@ export const updateMyBarberProfile = async (req, res, next) => {
       isActive,
       isOpen,
       shopImage,
+      shopImages,
       openingTime,
       closingTime,
       submitForApproval,
@@ -283,8 +304,10 @@ export const updateMyBarberProfile = async (req, res, next) => {
     if (isOpen !== undefined) {
       updates.isOpen = Boolean(isOpen);
     }
-    if (shopImage !== undefined) {
-      updates.shopImage = shopImage;
+    if (shopImage !== undefined || shopImages !== undefined) {
+      const nextImages = normalizeShopImages(shopImage, shopImages);
+      updates.shopImage = nextImages[0] || '';
+      updates.shopImages = nextImages;
     }
     if (openingTime !== undefined) {
       updates.openingTime = openingTime;
@@ -301,7 +324,7 @@ export const updateMyBarberProfile = async (req, res, next) => {
             .filter(Boolean);
     }
     if (slotCapacity !== undefined) {
-      updates.slotCapacity = Math.max(1, Number(slotCapacity) || 1);
+      updates.slotCapacity = Math.min(20, Math.max(1, Number(slotCapacity) || 1));
     }
 
     if (submitForApproval === true) {
@@ -341,8 +364,10 @@ export const submitBarberListing = async (req, res, next) => {
       throw new AppError('Barber profile not found', 404);
     }
 
-    if (!barber.shopName?.trim() || !barber.location?.trim()) {
-      throw new AppError('Please complete shop name and location before submitting for approval', 400);
+    const shopImages = normalizeShopImages(barber.shopImage, barber.shopImages);
+
+    if (!barber.shopName?.trim() || !barber.location?.trim() || shopImages.length === 0) {
+      throw new AppError('Please complete shop name, location, and at least one shop image before submitting for approval', 400);
     }
 
     barber.listingStatus = 'pending';

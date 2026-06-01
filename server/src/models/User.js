@@ -38,6 +38,7 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: [true, 'Please enter your phone number'],
+      match: [/^\+91\d{10}$/, 'Phone number must start with +91 and contain exactly 10 digits after it'],
     },
     role: {
       type: String,

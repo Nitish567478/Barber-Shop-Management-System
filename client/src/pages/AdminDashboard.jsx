@@ -5,8 +5,10 @@ import { AlertTriangle, Award, CalendarCheck, Clock,  Eye, IndianRupee, Loader2,
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import BarberShopLoader from '../components/BarberShopLoader';
+import ShopImageSlider from '../components/ShopImageSlider';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -15,6 +17,52 @@ function cn(...inputs) {
 const formatCurrency = (amount) => `Rs. ${Number(amount || 0).toLocaleString('en-IN')}`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString() : 'N/A');
 const PAGE_SIZE = 10;
+const matchesSearch = (query, ...values) =>
+  !query || values.some((value) => String(value || '').toLowerCase().includes(query));
+
+const buildChartData = (appointments, period) => {
+  const now = new Date();
+  const days = period === 'daily' ? 7 : period === 'weekly' ? 28 : 180;
+  const bucketCount = period === 'daily' ? 7 : period === 'weekly' ? 4 : 6;
+  const buckets = Array.from({ length: bucketCount }, (_, index) => {
+    const end = new Date(now);
+    const start = new Date(now);
+
+    if (period === 'daily') {
+      start.setDate(now.getDate() - (bucketCount - index - 1));
+      start.setHours(0, 0, 0, 0);
+      end.setTime(start.getTime());
+      end.setHours(23, 59, 59, 999);
+      return { label: start.toLocaleDateString('en-IN', { weekday: 'short' }), start, end, bookings: 0, revenue: 0 };
+    }
+
+    if (period === 'weekly') {
+      start.setDate(now.getDate() - (bucketCount - index) * 7 + 1);
+      start.setHours(0, 0, 0, 0);
+      end.setDate(now.getDate() - (bucketCount - index - 1) * 7);
+      end.setHours(23, 59, 59, 999);
+      return { label: `Week ${index + 1}`, start, end, bookings: 0, revenue: 0 };
+    }
+
+    start.setMonth(now.getMonth() - (bucketCount - index - 1), 1);
+    start.setHours(0, 0, 0, 0);
+    end.setMonth(start.getMonth() + 1, 0);
+    end.setHours(23, 59, 59, 999);
+    return { label: start.toLocaleDateString('en-IN', { month: 'short' }), start, end, bookings: 0, revenue: 0 };
+  });
+
+  appointments.forEach((appointment) => {
+    const date = new Date(appointment.appointmentDate || appointment.createdAt);
+    const bucket = buckets.find(({ start, end }) => date >= start && date <= end);
+    if (!bucket) return;
+    bucket.bookings += 1;
+    if (appointment.status === 'completed') {
+      bucket.revenue += Number(appointment.price || 0);
+    }
+  });
+
+  return buckets.map(({ label, bookings, revenue }) => ({ label, bookings, revenue }));
+};
 const getSuspensionLabel = (barber) => {
   if (!barber?.suspendedUntil) {
     return '';
@@ -79,6 +127,7 @@ const AdminDashboard = () => {
   const [selectedBarber, setSelectedBarber] = useState(null);
   const [actionLoading, setActionLoading] = useState('');
   const [appointmentsPage, setAppointmentsPage] = useState(1);
+  const [chartPeriod, setChartPeriod] = useState('daily');
 
   const [appointments, setAppointments] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -135,6 +184,7 @@ const AdminDashboard = () => {
       .reduce((sum, appointment) => sum + Number(appointment.price || 0), 0);
     const totalRevenue = invoiceRevenue + completedRevenueWithoutInvoice;
     const scheduledAppointments = appointments.filter((appointment) => appointment.status === 'scheduled');
+    const activeAppointments = [...completedAppointments, ...scheduledAppointments];
     const reviews = appointments.filter((appointment) => appointment.feedback?.submittedAt);
     const averageRating = reviews.length
       ? reviews.reduce((sum, appointment) => sum + Number(appointment.feedback.rating || 0), 0) / reviews.length
@@ -171,6 +221,7 @@ const AdminDashboard = () => {
 
     return {
       totalRevenue,
+      activeAppointments: activeAppointments.length,
       completedAppointments: completedAppointments.length,
       scheduledAppointments: scheduledAppointments.length,
       customers: Array.from(customerMap.values()),
@@ -186,21 +237,24 @@ const AdminDashboard = () => {
 
   const q = search.trim().toLowerCase();
   const filteredPending = pendingBarbers.filter((barber) =>
-    !q || barber.userId?.name?.toLowerCase().includes(q) || barber.shopName?.toLowerCase().includes(q)
+    matchesSearch(q, barber.userId?.name, barber.userId?.email, barber.shopName, barber.location)
   );
   const filteredReports = reports.filter((report) =>
-    !q ||
-    report.customerId?.name?.toLowerCase().includes(q) ||
-    report.barberId?.shopName?.toLowerCase().includes(q) ||
-    report.message?.toLowerCase().includes(q)
+    matchesSearch(q, report.customerId?.name, report.customerId?.email, report.barberId?.shopName, report.message, report.status, report.category)
   );
   const filteredAppointments = appointments.filter((appointment) =>
-    !q ||
-    appointment.customerId?.name?.toLowerCase().includes(q) ||
-    appointment.customerId?.email?.toLowerCase().includes(q) ||
-    appointment.barberId?.shopName?.toLowerCase().includes(q) ||
-    appointment.status?.toLowerCase().includes(q)
+    matchesSearch(q, appointment.customerId?.name, appointment.customerId?.email, appointment.customerId?.phone, appointment.barberId?.shopName, appointment.status)
   );
+  const filteredBarberRankings = analytics.barberRankings.filter((barber) =>
+    matchesSearch(q, barber.userId?.name, barber.userId?.email, barber.shopName, barber.location)
+  );
+  const filteredCustomers = analytics.customers.filter((customer) =>
+    matchesSearch(q, customer.name, customer.email, customer.phone)
+  );
+  const filteredServices = services.filter((service) =>
+    matchesSearch(q, service.name, service.category, service.description)
+  );
+  const chartData = useMemo(() => buildChartData(appointments, chartPeriod), [appointments, chartPeriod]);
   const totalAppointmentPages = Math.max(1, Math.ceil(filteredAppointments.length / PAGE_SIZE));
   const currentAppointmentPage = Math.min(appointmentsPage, totalAppointmentPages);
   const paginatedAppointments = filteredAppointments.slice(
@@ -256,6 +310,7 @@ const AdminDashboard = () => {
     ['customers', 'Customers'],
     ['services', 'Services'],
     ['finance', 'Finance'],
+    ['analytics', 'Analytics'],
     ['settings', 'Settings'],
   ];
 
@@ -312,7 +367,7 @@ const AdminDashboard = () => {
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard title="Revenue" value={formatCurrency(analytics.totalRevenue)} helper="Completed paid invoices" icon={IndianRupee} tone="bg-emerald-400/10 text-emerald-200" />
-          <StatCard title="Appointments" value={appointments.length} helper={`${analytics.completedAppointments} completed, ${analytics.scheduledAppointments} scheduled`} icon={CalendarCheck} tone="bg-sky-400/10 text-sky-200" />
+          <StatCard title="Appointments" value={analytics.activeAppointments} helper={`${analytics.completedAppointments} completed, ${analytics.scheduledAppointments} scheduled`} icon={CalendarCheck} tone="bg-sky-400/10 text-sky-200" />
           <StatCard title="Barbers" value={barbers.length} helper={`${pendingBarbers.length} pending, ${analytics.suspendedBarbers} suspended`} icon={Scissors} tone="bg-violet-400/10 text-violet-200" />
           <StatCard title="Reports" value={analytics.openReports} helper={`${analytics.verifiedReports} verified, ${analytics.rejectedReports} rejected`} icon={AlertTriangle} tone="bg-rose-400/10 text-rose-200" />
         </section>
@@ -325,7 +380,7 @@ const AdminDashboard = () => {
                 <Award className="text-amber-300" />
               </div>
               <div className="space-y-3">
-                {analytics.barberRankings.slice(0, 6).map((barber, index) => (
+                {filteredBarberRankings.slice(0, 6).map((barber, index) => (
                   <button
                     key={barber._id}
                     onClick={() => setSelectedBarber(barber)}
@@ -398,17 +453,19 @@ const AdminDashboard = () => {
                       <p className="mt-4 text-sm leading-6 text-slate-200">{report.message}</p>
                       {report.adminNote && <p className="mt-3 text-sm text-amber-100">Admin note: {report.adminNote}</p>}
                     </div>
-                    <div className="flex flex-wrap gap-2 lg:flex-col">
-                      <button disabled={actionLoading === report._id} onClick={() => handleReportAction(report._id, { status: 'verified', actionType: 'suspended', suspendedDays: 3, adminNote: 'Verified by admin. Shop suspended for 3 days.' })} className="theme-danger-btn text-sm">
-                        Suspend 3 Days
-                      </button>
-                      <button disabled={actionLoading === report._id} onClick={() => handleReportAction(report._id, { status: 'verified', actionType: 'suspended', suspendedDays: 7, adminNote: 'Verified by admin. Shop suspended for 7 days.' })} className="theme-danger-btn text-sm">
-                        Suspend 7 Days
-                      </button>
-                      <button disabled={actionLoading === report._id} onClick={() => handleReportAction(report._id, { status: 'rejected', adminNote: 'Report rejected after verification.' })} className="theme-secondary-btn text-sm">
-                        Reject Report
-                      </button>
-                    </div>
+                    {report.status === 'open' && (
+                      <div className="flex flex-wrap gap-2 lg:flex-col">
+                        <button disabled={actionLoading === report._id} onClick={() => handleReportAction(report._id, { status: 'verified', actionType: 'suspended', suspendedDays: 3, adminNote: 'Verified by admin. Shop suspended for 3 days.' })} className="theme-danger-btn text-sm">
+                          Suspend 3 Days
+                        </button>
+                        <button disabled={actionLoading === report._id} onClick={() => handleReportAction(report._id, { status: 'verified', actionType: 'suspended', suspendedDays: 7, adminNote: 'Verified by admin. Shop suspended for 7 days.' })} className="theme-danger-btn text-sm">
+                          Suspend 7 Days
+                        </button>
+                        <button disabled={actionLoading === report._id} onClick={() => handleReportAction(report._id, { status: 'rejected', adminNote: 'Report rejected after verification.' })} className="theme-secondary-btn text-sm">
+                          Reject Report
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -500,7 +557,7 @@ const AdminDashboard = () => {
             <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
               <h2 className="text-2xl font-semibold">Active Barber Shops</h2>
               <div className="mt-5 space-y-3">
-                {analytics.barberRankings.map((barber) => (
+                {filteredBarberRankings.map((barber) => (
                   <button key={barber._id} onClick={() => setSelectedBarber(barber)} className="flex w-full items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-left">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -525,7 +582,7 @@ const AdminDashboard = () => {
           <section className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
             <h2 className="text-2xl font-semibold">Customer Management</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {analytics.customers.map((customer) => {
+              {filteredCustomers.map((customer) => {
                 const customerAppointments = appointments.filter((appointment) => appointment.customerId?._id === customer._id);
                 return (
                   <div key={customer._id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-5">
@@ -544,7 +601,7 @@ const AdminDashboard = () => {
           <section className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
             <h2 className="text-2xl font-semibold">Service Management</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {services.map((service) => (
+              {filteredServices.map((service) => (
                 <div key={service._id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-5">
                   <p className="text-xs uppercase tracking-[0.22em] text-amber-300">{service.category}</p>
                   <h3 className="mt-2 text-lg font-semibold">{service.name}</h3>
@@ -580,6 +637,48 @@ const AdminDashboard = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          </section>
+        )}
+
+        {activeView === 'analytics' && (
+          <section className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="flex items-center gap-2 text-2xl font-semibold"><TrendingUp className="text-emerald-300" /> Revenue & Booking Analytics</h2>
+                <p className="mt-2 text-sm text-slate-400">Compare completed revenue and total bookings by day, week, or month.</p>
+              </div>
+              <div className="flex gap-2">
+                {['daily', 'weekly', 'monthly'].map((period) => (
+                  <button
+                    key={period}
+                    type="button"
+                    onClick={() => setChartPeriod(period)}
+                    className={cn(
+                      'rounded-full border px-4 py-2 text-sm capitalize transition',
+                      chartPeriod === period
+                        ? 'border-amber-300/40 bg-amber-400/15 text-amber-100'
+                        : 'border-white/10 bg-white/5 text-slate-300'
+                    )}
+                  >
+                    {period}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-6 h-96 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="label" stroke="#cbd5e1" />
+                  <YAxis yAxisId="left" stroke="#cbd5e1" />
+                  <YAxis yAxisId="right" orientation="right" stroke="#cbd5e1" />
+                  <Tooltip contentStyle={{ background: '#020617', border: '1px solid #334155', borderRadius: 12 }} />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="revenue" name="Revenue (Rs.)" fill="#34d399" radius={[6, 6, 0, 0]} />
+                  <Bar yAxisId="right" dataKey="bookings" name="Bookings" fill="#38bdf8" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </section>
         )}
@@ -633,6 +732,13 @@ const AdminDashboard = () => {
                     <p className="mt-1 text-slate-400">{selectedBarber.userId?.name || 'Unknown barber'}</p>
                   </div>
                   <button onClick={() => setSelectedBarber(null)} className="rounded-full bg-white/10 p-2"><X size={18} /></button>
+                </div>
+                <div className="mt-5 h-56 overflow-hidden rounded-2xl border border-white/10">
+                  <ShopImageSlider
+                    images={selectedBarber.shopImages?.length ? selectedBarber.shopImages : [selectedBarber.shopImage]}
+                    fallbackImage="https://images.unsplash.com/photo-1512690459411-b0fd1c86b8c8?auto=format&fit=crop&w=1200&q=80"
+                    alt={selectedBarber.shopName || 'Barber shop'}
+                  />
                 </div>
                 <div className="mt-6 grid gap-4 sm:grid-cols-3">
                   <div className="rounded-2xl bg-white/5 p-4"><p className="text-sm text-slate-400">Revenue</p><p className="mt-1 font-semibold text-emerald-200">{formatCurrency(selectedBarber.revenue)}</p></div>

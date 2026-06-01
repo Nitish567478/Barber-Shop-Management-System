@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
@@ -12,6 +12,7 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [routeMessage, setRouteMessage] = useState(location.state?.message || '');
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -40,6 +41,17 @@ const Login = () => {
     }
   };
 
+  useEffect(() => {
+    if (!error && !routeMessage) return undefined;
+
+    const timerId = window.setTimeout(() => {
+      setError('');
+      setRouteMessage('');
+    }, 3000);
+
+    return () => window.clearTimeout(timerId);
+  }, [error, routeMessage]);
+
   return (
     <div className="theme-page flex items-center justify-center px-6 py-10">
       <div className="theme-card w-full max-w-md">
@@ -51,8 +63,8 @@ const Login = () => {
           Access your bookings, invoices, and shop dashboard from one account.
         </p>
 
-        {location.state?.message && (
-          <div className="alert alert-success mb-4">{location.state.message}</div>
+        {routeMessage && (
+          <div className="alert alert-success mb-4">{routeMessage}</div>
         )}
 
         {error && <div className="alert alert-error">{error}</div>}

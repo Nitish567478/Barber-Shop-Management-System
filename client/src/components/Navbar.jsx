@@ -58,7 +58,7 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
       </button>
 
       <div
-        className={`overflow-hidden transition-all duration-300 md:hidden ${
+        className={`absolute left-0 right-0 top-[calc(100%+0.75rem)] overflow-hidden transition-all duration-300 md:hidden ${
           isMenuOpen
             ? "max-h-[650px] pt-4 opacity-100"
             : "max-h-0 opacity-0"
@@ -70,6 +70,7 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
               <NavLink
                 key={link.to}
                 to={link.to}
+                onClick={() => setIsMenuOpen(false)}
                 className={({ isActive }) =>
                   `rounded-2xl px-4 py-3 text-sm font-medium transition-all ${
                     isActive
@@ -86,7 +87,10 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
           {showDashboard && (
             <button
               onClick={() =>
-                navigate("/dashboard")
+                {
+                  setIsMenuOpen(false);
+                  navigate("/dashboard");
+                }
               }
               className="w-full rounded-2xl border border-amber-300/30 px-4 py-3 text-left text-sm font-medium text-amber-200 hover:bg-amber-400/10"
             >
@@ -111,7 +115,10 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
             <div className="grid gap-3 border-t border-white/10 pt-4">
               <button
                 onClick={() =>
-                  navigate("/login")
+                  {
+                    setIsMenuOpen(false);
+                    navigate("/login");
+                  }
                 }
                 className="theme-secondary-btn w-full text-sm"
               >
@@ -120,7 +127,10 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
 
               <button
                 onClick={() =>
-                  navigate("/register")
+                  {
+                    setIsMenuOpen(false);
+                    navigate("/register");
+                  }
                 }
                 className="theme-primary-btn w-full text-sm"
               >
@@ -153,7 +163,7 @@ function Navbar() {
       <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
         {/* MAIN BAR */}
 
-        <div className="flex items-center justify-between gap-4 rounded-[1.7rem] border border-white/10 bg-white/[0.03] px-4 py-3 shadow-xl shadow-black/20">
+        <div className="relative flex items-center justify-between gap-4 rounded-[1.7rem] border border-white/10 bg-white/[0.03] px-4 py-3 shadow-xl shadow-black/20">
           {/* LOGO */}
           <button
             onClick={() => navigate("/")}

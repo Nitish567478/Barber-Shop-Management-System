@@ -24,6 +24,7 @@ const BookAppointment = () => {
   const [barbers, setBarbers] = useState([]);
   const [services, setServices] = useState([]);
   const [vouchers, setVouchers] = useState([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -36,6 +37,7 @@ const BookAppointment = () => {
   useEffect(() => {
     const fetchData = async () => {
       setDataWarning('');
+      setInitialLoading(true);
 
       const [barbersResult, servicesResult, vouchersResult] = await Promise.allSettled([
         barbersAPI.getAll(),
@@ -73,6 +75,7 @@ const BookAppointment = () => {
       }
 
       setError('');
+      setInitialLoading(false);
     };
 
     fetchData();
@@ -188,8 +191,24 @@ const BookAppointment = () => {
     }
   };
 
-  if(!loading && barbers.length === 0 && services.length === 0){
-    return <BarberShopLoader />
+  useEffect(() => {
+    if (!error && !success && !dataWarning) return undefined;
+
+    const timerId = window.setTimeout(() => {
+      setError('');
+      setSuccess('');
+      setDataWarning('');
+    }, 3000);
+
+    return () => window.clearTimeout(timerId);
+  }, [error, success, dataWarning]);
+
+  if (initialLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+        <BarberShopLoader />
+      </div>
+    );
   }
 
   return (
@@ -396,7 +415,7 @@ const BookAppointment = () => {
               <p className="mt-1 font-semibold text-emerald-200">Payable amount: {formatCurrency(payableAmount)}</p>
               {selectedBarber && (
                 <p className="mt-1">
-                  Slot limit for this shop: {selectedBarber.slotCapacity || 3} booking(s) per time slot
+                  Slot limit for this shop: {selectedBarber.slotCapacity || 1} booking(s) per time slot
                 </p>
               )}
             </div>

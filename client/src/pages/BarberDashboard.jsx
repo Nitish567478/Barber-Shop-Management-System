@@ -4,6 +4,7 @@ import { appointmentsAPI, barbersAPI, couponsAPI, servicesAPI } from '../service
 import { Moon, Power, Star, Sun, Sunrise, X } from 'lucide-react';
 
 import BarberShopLoader from '../components/BarberShopLoader';
+import ShopImageSlider from '../components/ShopImageSlider';
 
 const emptyServiceForm = {
   name: '',
@@ -28,6 +29,8 @@ const emptyCouponForm = {
 const defaultShopPreview = 'https://images.unsplash.com/photo-1512690459411-b0fd1c86b8c8?auto=format&fit=crop&w=1200&q=80';
 
 const PAGE_SIZE = 10;
+const MAX_SHOP_IMAGES = 5;
+const NEW_BOOKING_WINDOW_MS = 12 * 60 * 60 * 1000;
 const formatCurrency = (value) => `Rs. ${Number(value || 0)}`;
 const formatDate = (value) => new Date(value).toLocaleDateString();
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : 'N/A');
@@ -37,14 +40,6 @@ const getGreeting = () => {
   if (hour < 17) return { label: 'Good afternoon', Icon: Sun };
   if (hour < 21) return { label: 'Good evening', Icon: Moon };
   return { label: 'Good night', Icon: Moon };
-};
-const isSameDay = (value, date = new Date()) => {
-  const next = new Date(value);
-  return (
-    next.getFullYear() === date.getFullYear() &&
-    next.getMonth() === date.getMonth() &&
-    next.getDate() === date.getDate()
-  );
 };
 const getSuspensionLabel = (profile) => {
   if (!profile?.suspendedUntil) {
@@ -103,8 +98,11 @@ const BarberDashboard = () => {
     location: '',
     bio: '',
     shopImage: '',
+    shopImages: [''],
     openingTime: '09:00',
     closingTime: '18:00',
+    staffMembers: '',
+    slotCapacity: 1,
     isActive: true,
     isOpen: true,
   });
@@ -127,18 +125,49 @@ const BarberDashboard = () => {
   };
 
   const syncProfileForm = (nextProfile) => {
+    const rawShopImages = Array.isArray(nextProfile?.shopImages) ? nextProfile.shopImages : [];
+    const normalizedImages = rawShopImages
+      .map((v) => String(v || '').trim())
+      .filter(Boolean)
+      .slice(0, MAX_SHOP_IMAGES);
+
+    // If shopImages is empty, fallback to shopImage (but never introduce empty string into shopImages)
+    const fallbackImage = String(nextProfile?.shopImage || '').trim();
+    const nextShopImages =
+      normalizedImages.length > 0 ? normalizedImages : (fallbackImage ? [fallbackImage] : []);
+
+    const staffMembers = Array.isArray(nextProfile?.staffMembers)
+      ? nextProfile.staffMembers.join('\n')
+      : '';
+
     setProfileForm({
       shopName: nextProfile.shopName || '',
       experience: nextProfile.experience || 0,
       specialization: (nextProfile.specialization || []).join(', '),
       location: nextProfile.location || '',
       bio: nextProfile.bio || '',
-      shopImage: nextProfile.shopImage || '',
+      shopImage: nextShopImages[0] || '',
+      shopImages: [...nextShopImages, ...Array(MAX_SHOP_IMAGES).fill('')].slice(0, MAX_SHOP_IMAGES),
       openingTime: nextProfile.openingTime || '09:00',
       closingTime: nextProfile.closingTime || '18:00',
+      staffMembers,
+      slotCapacity: nextProfile.slotCapacity || Math.max(1, nextProfile.staffMembers?.length || 1),
       isActive: nextProfile.isActive !== false,
       isOpen: nextProfile.isOpen !== false,
     });
+  };
+
+  const preserveSubmittedShopImages = (nextProfile, submittedImages) => {
+    const savedImages = Array.isArray(nextProfile?.shopImages)
+      ? nextProfile.shopImages.map((image) => String(image || '').trim()).filter(Boolean)
+      : [];
+    const nextImages = savedImages.length > 0 ? savedImages : submittedImages;
+
+    return {
+      ...nextProfile,
+      shopImage: nextImages[0] || nextProfile?.shopImage || '',
+      shopImages: nextImages,
+    };
   };
 
   const fetchDashboard = async ({ silent = false } = {}) => {
@@ -181,9 +210,20 @@ const BarberDashboard = () => {
 
   useEffect(() => {
     fetchDashboard();
-    const intervalId = window.setInterval(() => fetchDashboard({ silent: true }), 25000);
+    const intervalId = window.setInterval(() => fetchDashboard({ silent: true }), 60000);
     return () => window.clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    if (!error && !success) return undefined;
+
+    const timerId = window.setTimeout(() => {
+      setError('');
+      setSuccess('');
+    }, 3000);
+
+    return () => window.clearTimeout(timerId);
+  }, [error, success]);
 
   const clearBanner = () => {
     setError('');
@@ -197,6 +237,20 @@ const BarberDashboard = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+    clearBanner();
+  };
+
+  const handleShopImageChange = (index, value) => {
+    profileFormDirtyRef.current = true;
+    setProfileForm((prev) => {
+      const nextImages = [...prev.shopImages];
+      nextImages[index] = value;
+      return {
+        ...prev,
+        shopImages: nextImages,
+        shopImage: nextImages.find((image) => image.trim()) || '',
+      };
+    });
     clearBanner();
   };
 
@@ -226,12 +280,24 @@ const BarberDashboard = () => {
     try {
       setSavingProfile(true);
       clearBanner();
+      const shopImages = profileForm.shopImages
+        .map((image) => image.trim())
+        .filter(Boolean)
+        .slice(0, MAX_SHOP_IMAGES);
+
+      if (shopImages.length === 0) {
+        setError('Please add at least one barber shop image URL.');
+        return;
+      }
+
       const response = await barbersAPI.updateMine({
         ...profileForm,
         experience: Number(profileForm.experience) || 0,
-        shopImage: profileForm.shopImage.trim(),
+        shopImage: shopImages[0],
+        shopImages,
+        slotCapacity: Number(profileForm.slotCapacity) || 1,
       });
-      const nextProfile = response.data.barber;
+      const nextProfile = preserveSubmittedShopImages(response.data.barber, shopImages);
       setProfile(nextProfile);
       profileFormDirtyRef.current = false;
       syncProfileForm(nextProfile);
@@ -254,8 +320,9 @@ const BarberDashboard = () => {
       const response = await barbersAPI.updateMine({ isOpen: nextIsOpen });
       const nextProfile = response.data.barber;
       setProfile(nextProfile);
-      profileFormDirtyRef.current = false;
-      syncProfileForm(nextProfile);
+      if (!profileFormDirtyRef.current) {
+        syncProfileForm(nextProfile);
+      }
       setSuccess(
         nextIsOpen && !nextProfile.isApproved
           ? 'Shop status saved. It will appear publicly only after admin approval.'
@@ -400,26 +467,33 @@ const BarberDashboard = () => {
 
   const scheduledBookings = bookings.filter((booking) => booking.status === 'scheduled');
   const completedBookings = bookings.filter((booking) => booking.status === 'completed');
-  const sortedBookings = [...bookings].sort(
+  const oldestFirstBookings = [...bookings].sort(
     (a, b) => {
       const createdDiff = new Date(a.createdAt || a.appointmentDate) - new Date(b.createdAt || b.appointmentDate);
       if (createdDiff !== 0) return createdDiff;
       return String(a._id || '').localeCompare(String(b._id || ''));
     }
   );
-  const totalBookingPages = Math.max(1, Math.ceil(sortedBookings.length / PAGE_SIZE));
+  const now = Date.now();
+  const todayBookings = oldestFirstBookings.filter((booking) => {
+    const bookedAt = new Date(booking.createdAt || booking.appointmentDate).getTime();
+    return Number.isFinite(bookedAt) && now - bookedAt < NEW_BOOKING_WINDOW_MS;
+  });
+  const lifoBookings = oldestFirstBookings
+    .filter((booking) => !todayBookings.some((todayBooking) => todayBooking._id === booking._id))
+    .reverse();
+  const totalBookingPages = Math.max(1, Math.ceil(lifoBookings.length / PAGE_SIZE));
   const currentBookingPage = Math.min(bookingPage, totalBookingPages);
-  const paginatedBookings = sortedBookings.slice(
+  const paginatedBookings = lifoBookings.slice(
     (currentBookingPage - 1) * PAGE_SIZE,
     currentBookingPage * PAGE_SIZE
   );
-  const todayBookings = sortedBookings.filter((booking) => isSameDay(booking.appointmentDate));
   const reviews = bookings.filter((booking) => booking.feedback?.submittedAt);
   const averageRating = reviews.length
     ? reviews.reduce((sum, booking) => sum + Number(booking.feedback?.rating || 0), 0) / reviews.length
     : 0;
   const totalRevenue = completedBookings.reduce((sum, booking) => sum + (booking.price || 0), 0);
-  const previewImage = profileForm.shopImage || profile?.shopImage || defaultShopPreview;
+  const previewImages = profileForm.shopImages.filter((image) => image.trim());
   const suspensionLabel = getSuspensionLabel(profile);
   const greeting = getGreeting();
   const GreetingIcon = greeting.Icon;
@@ -634,8 +708,18 @@ const BarberDashboard = () => {
                 <input type="time" name="closingTime" value={profileForm.closingTime} onChange={handleProfileChange} className="theme-input" required />
               </div>
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-slate-200">Shop Photo URL</label>
-                <input name="shopImage" value={profileForm.shopImage} onChange={handleProfileChange} className="theme-input" placeholder="https://example.com/barber-shop.jpg" />
+                <label className="mb-2 block text-sm font-medium text-slate-200">Shop Photo URLs</label>
+                <div className="grid gap-3">
+                  {profileForm.shopImages.map((imageUrl, index) => (
+                    <input
+                      key={index}
+                      value={imageUrl}
+                      onChange={(event) => handleShopImageChange(index, event.target.value)}
+                      className="theme-input"
+                      placeholder={index === 0 ? 'Required shop image URL' : `Optional shop image URL ${index + 1}`}
+                    />
+                  ))}
+                </div>
                 <p className="mt-2 text-xs text-slate-400"> Use this link for image URLs:{' '}
                   <a
                     href="https://image-to-url-iota.vercel.app/"
@@ -644,7 +728,35 @@ const BarberDashboard = () => {
                     className="text-amber-400 hover:underline"
                   >
                     Image to URL Converter
-                  </a> Upload your shop image there and dragon drop the generated image URL.
+                  </a> Add minimum 1 and maximum 5 shop image URLs.
+                </p>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-200">Staff Members</label>
+                <textarea
+                  name="staffMembers"
+                  value={profileForm.staffMembers}
+                  onChange={handleProfileChange}
+                  className="theme-input"
+                  rows="4"
+                  placeholder={'One staff name per line\nAman\nRahul'}
+                />
+                <p className="mt-2 text-xs text-slate-400">Add each working staff member on a new line.</p>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-200">Bookings Allowed per Time Slot</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  name="slotCapacity"
+                  value={profileForm.slotCapacity}
+                  onChange={handleProfileChange}
+                  className="theme-input"
+                  required
+                />
+                <p className="mt-2 text-xs text-slate-400">
+                  Example: 5 staff means allow up to 5 customers at the same 10:00-10:30 slot.
                 </p>
               </div>
               <div>
@@ -702,13 +814,11 @@ const BarberDashboard = () => {
             </div>
 
             <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-900/70">
-              <img
-                src={previewImage}
+              <ShopImageSlider
+                images={previewImages}
+                fallbackImage={profile?.shopImage || defaultShopPreview}
                 alt={profileForm.shopName || 'Barber shop preview'}
                 className="h-56 w-full object-cover"
-                onError={(event) => {
-                  event.currentTarget.src = defaultShopPreview;
-                }}
               />
               <div className="p-6">
                 <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Public Profile Preview</p>
@@ -969,7 +1079,7 @@ const BarberDashboard = () => {
               <div>
                 <h2 className="text-2xl font-semibold text-white">Customer Bookings</h2>
                 <p className="mt-2 text-sm text-slate-400">
-                  First come, first served queue. Oldest booking request stays at the top.
+                  New bookings stay in Today's Bookings for 12 hours. Older requests move into the LIFO queue.
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -992,7 +1102,7 @@ const BarberDashboard = () => {
             <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
                 <h3 className="text-xl font-semibold text-cyan-100">Today's Bookings</h3>
-                <p className="mt-1 text-sm text-slate-400">Aaj ki bookings bhi FIFO order mein update hoti rahengi.</p>
+                <p className="mt-1 text-sm text-slate-400">New requests stay here for their first 12 hours.</p>
               </div>
               <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100">
                 {todayBookings.length} today
@@ -1012,14 +1122,14 @@ const BarberDashboard = () => {
           <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5">
             <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
-                <h3 className="text-xl font-semibold text-white">FIFO Customer Queue</h3>
-                <p className="mt-1 text-sm text-slate-400">Sabhi bookings oldest request se newest request tak dikhengi.</p>
+                <h3 className="text-xl font-semibold text-white">LIFO Customer Queue</h3>
+                <p className="mt-1 text-sm text-slate-400">12 ghante se purani bookings newest request se oldest request tak dikhengi.</p>
               </div>
               <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
-                {sortedBookings.length} total
+                {lifoBookings.length} total
               </span>
             </div>
-            {sortedBookings.length === 0 ? (
+            {lifoBookings.length === 0 ? (
               <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-white/5 p-6 text-center text-slate-400">
                 No bookings received yet.
               </div>
@@ -1030,7 +1140,7 @@ const BarberDashboard = () => {
                 )}
               </div>
             )}
-            {sortedBookings.length > PAGE_SIZE && (
+            {lifoBookings.length > PAGE_SIZE && (
               <div className="mt-5 flex flex-wrap justify-center gap-2">
                 {Array.from({ length: totalBookingPages }, (_, index) => index + 1).map((page) => (
                   <button
