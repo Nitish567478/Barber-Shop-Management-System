@@ -5,6 +5,7 @@ import { Moon, Power, Star, Sun, Sunrise, X } from 'lucide-react';
 
 import BarberShopLoader from '../components/BarberShopLoader';
 import ShopImageSlider from '../components/ShopImageSlider';
+import { flash } from '../utils/helpers';
 
 const emptyServiceForm = {
   name: '',
@@ -254,7 +255,8 @@ const BarberDashboard = () => {
       setProfile(nextProfile);
       profileFormDirtyRef.current = false;
       syncProfileForm(nextProfile);
-      setSuccess(
+      flash(
+        setSuccess,
         nextProfile.isApproved
           ? 'Barber profile updated successfully.'
           : 'Barber profile saved. Submit it for admin approval before it can appear publicly.'
@@ -305,10 +307,10 @@ const BarberDashboard = () => {
 
       if (editingServiceId) {
         await servicesAPI.update(editingServiceId, payload);
-        setSuccess('Service updated successfully.');
+        flash(setSuccess, 'Service updated successfully.');
       } else {
         await servicesAPI.create(payload);
-        setSuccess('Service created successfully.');
+        flash(setSuccess, 'Service created successfully.');
       }
 
       resetServiceForm();
@@ -345,7 +347,7 @@ const BarberDashboard = () => {
       if (editingServiceId === serviceId) {
         resetServiceForm();
       }
-      setSuccess('Service removed successfully.');
+      flash(setSuccess, 'Service removed successfully.');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to remove service');
     }
@@ -360,7 +362,7 @@ const BarberDashboard = () => {
           booking._id === bookingId ? response.data.appointment : booking
         )
       );
-      setSuccess(`Booking marked as ${status}.`);
+      flash(setSuccess, `Booking marked as ${status}.`);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update booking');
     }
@@ -379,7 +381,7 @@ const BarberDashboard = () => {
       });
       setCoupons((prev) => [response.data.coupon, ...prev]);
       setCouponForm(emptyCouponForm);
-      setSuccess('Coupon launched and assigned customers were notified by email when configured.');
+      flash(setSuccess, 'Coupon launched and assigned customers were notified by email when configured.');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to launch coupon');
     } finally {
@@ -398,7 +400,7 @@ const BarberDashboard = () => {
       setProfile(nextProfile);
       profileFormDirtyRef.current = false;
       syncProfileForm(nextProfile);
-      setSuccess('Your barber shop has been sent to admin for approval. It is not public yet.');
+      flash(setSuccess, 'Your barber shop has been sent to admin for approval. It is not public yet.');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit shop for admin approval');
     } finally {

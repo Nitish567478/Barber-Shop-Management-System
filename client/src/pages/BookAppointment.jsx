@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { appointmentsAPI, barbersAPI, couponsAPI, servicesAPI } from '../services/api';
 import { isValidObjectId } from '../utils/objectId';
 import BarberShopLoader from "../components/BarberShopLoader";
+import { flash } from '../utils/helpers';
 
 const formatCurrency = (value) => `Rs. ${Number(value || 0).toLocaleString('en-IN')}`;
 
@@ -170,7 +171,7 @@ const BookAppointment = () => {
       };
 
       await appointmentsAPI.create(payload);
-      setSuccess('Appointment booked successfully!');
+      flash(setSuccess, 'Appointment booked successfully!');
       setFormData({
         barberId: '',
         serviceIds: [],

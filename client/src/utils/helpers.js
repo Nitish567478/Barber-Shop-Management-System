@@ -180,3 +180,17 @@ export const isValidPhone = (phone = '') => {
   const regex = /^[6-9]\d{9}$/;
   return regex.test(phone.replace(/\D/g, ''));
 };
+
+/**
+ * Set a message via setter and auto-clear after timeout (default 3000ms)
+ * @param {Function} setter - state setter (e.g., setSuccess)
+ * @param {string} value - message text
+ * @param {number} timeout - milliseconds to clear (default 3000)
+ */
+export const flash = (setter, value, timeout = 3000) => {
+  setter(value);
+  if (!setter) return;
+  window.setTimeout(() => {
+    try { setter(''); } catch (e) { /* ignore */ }
+  }, timeout);
+};
