@@ -233,19 +233,23 @@ const BarberDashboard = () => {
     try {
       setSavingProfile(true);
       clearBanner();
-      const shopImagesPayload = profileForm.shopImages
-        ? profileForm.shopImages
-            .split(/\r?\n|,/) // allow newline or comma separated
-            .map((s) => String(s).trim())
-            .filter(Boolean)
-            .slice(0, 5)
-        : [];
-
-      const response = await barbersAPI.updateMine({
+      let payload = {
         ...profileForm,
         experience: Number(profileForm.experience) || 0,
-        shopImages: shopImagesPayload,
-      });
+      };
+
+      // Only include shopImages if user provided at least one URL; do not
+      // send an empty array which would clear existing images unintentionally.
+      if (profileForm.shopImages && profileForm.shopImages.trim()) {
+        const shopImagesPayload = profileForm.shopImages
+          .split(/\r?\n|,/) // allow newline or comma separated
+          .map((s) => String(s).trim())
+          .filter(Boolean)
+          .slice(0, 5);
+        payload.shopImages = shopImagesPayload;
+      }
+
+      const response = await barbersAPI.updateMine(payload);
       const nextProfile = response.data.barber;
       setProfile(nextProfile);
       profileFormDirtyRef.current = false;

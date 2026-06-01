@@ -265,11 +265,13 @@ export const updateUserProfile = async (req, res, next) => {
       else normalizedPhone = `+${digits}`;
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.user.userId,
-      { name, phone: normalizedPhone, profilePicture },
-      { new: true, runValidators: true }
-    );
+    const updates = { name, phone: normalizedPhone };
+    if (profilePicture !== undefined) updates.profilePicture = profilePicture;
+
+    const user = await User.findByIdAndUpdate(req.user.userId, updates, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!user) {
       throw new AppError('User not found', 404);
