@@ -25,12 +25,13 @@ const emptyCouponForm = {
   assignedCustomerIds: [],
 };
 
-const defaultShopPreview = 'https://images.unsplash.com/photo-1512690459411-b0fd1c86b8c8?auto=format&fit=crop&w=1200&q=80';
+const defaultShopPreview = 'https://i.ibb.co/tTG7LKWs/barber-shop.avif';
 
 const PAGE_SIZE = 10;
 const formatCurrency = (value) => `Rs. ${Number(value || 0)}`;
 const formatDate = (value) => new Date(value).toLocaleDateString();
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : 'N/A');
+
 const getGreeting = () => {
   const hour = new Date().getHours();
   if (hour < 12) return { label: 'Good morning', Icon: Sunrise };
@@ -536,11 +537,10 @@ const BarberDashboard = () => {
             <button
               type="button"
               onClick={handleShopOpenToggle}
-              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 transition ${
-                profile?.isOpen !== false
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 transition ${profile?.isOpen !== false
                   ? 'border-emerald-300/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15'
                   : 'border-red-300/30 bg-red-500/10 text-red-200 hover:bg-red-500/15'
-              }`}
+                }`}
             >
               <Power size={16} />
               {profile?.isOpen !== false ? 'Open' : 'Closed'}
@@ -759,29 +759,29 @@ const BarberDashboard = () => {
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-200">Category</label>
                 <select
-    name="category"
-    value={serviceForm.category}
-    onChange={handleServiceChange}
-    className="theme-select"
-  >
-    <option value="haircut">Haircut</option>
-    <option value="shaving">Shaving</option>
-    <option value="coloring">Coloring</option>
-    <option value="treatment">Treatment</option>
-    <option value="grooming">Grooming</option>
-    <option value="other">Other</option>
-  </select>
+                  name="category"
+                  value={serviceForm.category}
+                  onChange={handleServiceChange}
+                  className="theme-select"
+                >
+                  <option value="haircut">Haircut</option>
+                  <option value="shaving">Shaving</option>
+                  <option value="coloring">Coloring</option>
+                  <option value="treatment">Treatment</option>
+                  <option value="grooming">Grooming</option>
+                  <option value="other">Other</option>
+                </select>
 
-  {serviceForm.category === "other" && (
-    <input
-      type="text"
-      name="customCategory"
-      placeholder="Enter custom category"
-      value={serviceForm.customCategory || ""}
-      onChange={handleServiceChange}
-      className="theme-input mt-2"
-    />
-  )}
+                {serviceForm.category === "other" && (
+                  <input
+                    type="text"
+                    name="customCategory"
+                    placeholder="Enter custom category"
+                    value={serviceForm.customCategory || ""}
+                    onChange={handleServiceChange}
+                    className="theme-input mt-2"
+                  />
+                )}
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -896,7 +896,7 @@ const BarberDashboard = () => {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-                {reviews.slice(0, 6).map((booking) => (
+              {reviews.slice(0, 6).map((booking) => (
                 <div key={booking._id} className="rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -1037,11 +1037,10 @@ const BarberDashboard = () => {
                     key={page}
                     type="button"
                     onClick={() => setBookingPage(page)}
-                    className={`h-10 min-w-10 rounded-xl border px-3 text-sm font-semibold transition ${
-                      currentBookingPage === page
+                    className={`h-10 min-w-10 rounded-xl border px-3 text-sm font-semibold transition ${currentBookingPage === page
                         ? 'border-amber-300 bg-amber-400 text-slate-950'
                         : 'border-white/10 bg-white/5 text-slate-200 hover:border-amber-300/40'
-                    }`}
+                      }`}
                   >
                     {page}
                   </button>
