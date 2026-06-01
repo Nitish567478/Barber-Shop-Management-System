@@ -31,6 +31,7 @@ const defaultShopPreview = 'https://images.unsplash.com/photo-1512690459411-b0fd
 const PAGE_SIZE = 10;
 const MAX_SHOP_IMAGES = 5;
 const NEW_BOOKING_WINDOW_MS = 12 * 60 * 60 * 1000;
+const SHOP_IMAGES_STORAGE_PREFIX = 'barber-shop-images:';
 const formatCurrency = (value) => `Rs. ${Number(value || 0)}`;
 const formatDate = (value) => new Date(value).toLocaleDateString();
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : 'N/A');
@@ -83,6 +84,24 @@ const formatHours = (openingTime, closingTime) => {
   return `${convertTo12Hour(openingTime)} - ${convertTo12Hour(closingTime)}`;
 };
 
+const getStoredShopImages = (userId) => {
+  if (!userId) return [];
+
+  try {
+    const value = JSON.parse(localStorage.getItem(`${SHOP_IMAGES_STORAGE_PREFIX}${userId}`) || '[]');
+    return Array.isArray(value)
+      ? value.map((image) => String(image || '').trim()).filter(Boolean).slice(0, MAX_SHOP_IMAGES)
+      : [];
+  } catch {
+    return [];
+  }
+};
+
+const storeShopImages = (userId, shopImages) => {
+  if (!userId) return;
+  localStorage.setItem(`${SHOP_IMAGES_STORAGE_PREFIX}${userId}`, JSON.stringify(shopImages));
+};
+
 const BarberDashboard = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
@@ -133,8 +152,14 @@ const BarberDashboard = () => {
 
     // If shopImages is empty, fallback to shopImage (but never introduce empty string into shopImages)
     const fallbackImage = String(nextProfile?.shopImage || '').trim();
-    const nextShopImages =
-      normalizedImages.length > 0 ? normalizedImages : (fallbackImage ? [fallbackImage] : []);
+    const storedImages = getStoredShopImages(user?.id || user?._id || nextProfile?.userId?._id);
+    const nextShopImages = normalizedImages.length > 1
+      ? normalizedImages
+      : storedImages.length > normalizedImages.length && (!fallbackImage || storedImages[0] === fallbackImage)
+        ? storedImages
+        : normalizedImages.length > 0
+          ? normalizedImages
+          : (fallbackImage ? [fallbackImage] : storedImages);
 
     const staffMembers = Array.isArray(nextProfile?.staffMembers)
       ? nextProfile.staffMembers.join('\n')
@@ -298,6 +323,7 @@ const BarberDashboard = () => {
         slotCapacity: Number(profileForm.slotCapacity) || 1,
       });
       const nextProfile = preserveSubmittedShopImages(response.data.barber, shopImages);
+      storeShopImages(user?.id || user?._id || nextProfile?.userId?._id, shopImages);
       setProfile(nextProfile);
       profileFormDirtyRef.current = false;
       syncProfileForm(nextProfile);
