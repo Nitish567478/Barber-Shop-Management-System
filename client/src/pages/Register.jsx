@@ -125,6 +125,7 @@ const Register = () => {
               value={formData.name}
               onChange={handleFormChange}
               className="theme-input"
+              placeholder="Nitish Kumar"
               required
             />
           </div>
@@ -168,6 +169,8 @@ const Register = () => {
               onChange={handleFormChange}
               onBlur={handlePhoneBlur}
               className="theme-input"
+              placeholder="Enter your phone number"
+              maxLength="10"
               required
             />
           </div>
@@ -182,6 +185,7 @@ const Register = () => {
                 value={formData.password}
                 onChange={handleFormChange}
                 className="theme-input pr-12"
+                placeholder="Enter your strong password"
                 required
               />
               <button
@@ -247,7 +251,7 @@ const Register = () => {
                   value={formData.location}
                   onChange={handleFormChange}
                   className="theme-input"
-                  placeholder="Kolkata, West Bengal"
+                  placeholder="Lala Lajpat Rai Road, Ranchi"
                 />
               </div>
 

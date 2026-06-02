@@ -66,6 +66,7 @@ const Login = () => {
               value={formData.email}
               onChange={handleChange}
               className="theme-input"
+              placeholder="Enter your email"
               required
             />
           </div>
@@ -79,6 +80,7 @@ const Login = () => {
                 value={formData.password}
                 onChange={handleChange}
                 className="theme-input pr-12"
+                placeholder="Enter your password"
                 required
               />
               <button

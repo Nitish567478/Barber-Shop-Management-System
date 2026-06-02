@@ -90,6 +90,7 @@ const ProfilePage = () => {
                 value={formData.name}
                 onChange={handleChange}
                 className="theme-input w-full"
+                placeholder="Nitish Kumar"
                 required
               />
             </div>
@@ -118,7 +119,17 @@ const ProfilePage = () => {
                 className="theme-input w-full"
                 placeholder="https://example.com/profile.jpg"
               />
-              <p className="mt-2 text-xs text-slate-400">Paste an image URL to show your photo on dashboards.</p>
+              <p className="mb-2 text-xs text-slate-400">
+                Enter a direct image URL for your profile photo. Don't have one? Generate an image URL using{" "}
+                <a
+                  href="https://image-to-url-iota.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-400 hover:underline"
+                >
+                  Image to URL Converter
+                </a>.
+              </p>
             </div>
 
             {formData.profilePicture && (
@@ -137,6 +148,7 @@ const ProfilePage = () => {
                 onChange={handleChange}
                 onBlur={handlePhoneBlur}
                 className="theme-input w-full"
+                maxLength={12}
                 required
               />
             </div>

@@ -1092,7 +1092,7 @@ const BarberDashboard = () => {
           <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5">
             <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
-                <h3 className="text-xl font-semibold text-white">FIFO Customer Queue</h3>
+                <h3 className="text-xl font-semibold text-white">LIFO Customer Queue</h3>
                 <p className="mt-1 text-sm text-slate-400">Sabhi bookings oldest request se newest request tak dikhengi.</p>
               </div>
               <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">

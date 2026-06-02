@@ -233,7 +233,7 @@ const BookAppointment = () => {
                   </option>
                 ))}
               </select>
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="mt-2 text-xs text-red-400">
                 Leave this empty if you want the shop to assign any available barber.
               </p>
             </div>
