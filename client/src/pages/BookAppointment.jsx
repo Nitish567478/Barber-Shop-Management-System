@@ -93,6 +93,11 @@ const BookAppointment = () => {
   const totalPrice = selectedServices.reduce((sum, service) => sum + (service.price || 0), 0);
   const totalDuration = selectedServices.reduce((sum, service) => sum + (service.duration || 0), 0);
   const staffOptions = selectedBarber?.staffMembers || [];
+  const selectedBarberCapacity = selectedBarber
+    ? selectedBarber.staffMembers?.length > 0
+      ? selectedBarber.staffMembers.length
+      : selectedBarber.slotCapacity || 3
+    : 3;
   const normalizedCouponCode = formData.couponCode.trim().toUpperCase();
   const selectedVoucher = normalizedCouponCode
     ? vouchers.find((voucher) => {
@@ -396,9 +401,16 @@ const BookAppointment = () => {
               <p className="mt-1">Coupon discount: {formatCurrency(couponDiscount)}</p>
               <p className="mt-1 font-semibold text-emerald-200">Payable amount: {formatCurrency(payableAmount)}</p>
               {selectedBarber && (
-                <p className="mt-1">
-                  Slot limit for this shop: {selectedBarber.slotCapacity || 3} booking(s) per time slot
-                </p>
+                <>
+                  <p className="mt-1">
+                    This shop can accept up to {selectedBarberCapacity} booking(s) per time slot.
+                  </p>
+                  {selectedBarber.staffMembers?.length > 0 && (
+                    <p className="mt-1 text-slate-400">
+                      {selectedBarber.staffMembers.length} staff member(s) available. Choosing a specific staff member reserves one booking slot for that person.
+                    </p>
+                  )}
+                </>
               )}
             </div>
 

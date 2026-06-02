@@ -15,6 +15,12 @@ function cn(...inputs) {
 const formatCurrency = (amount) => `Rs. ${Number(amount || 0).toLocaleString('en-IN')}`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString() : 'N/A');
 const PAGE_SIZE = 10;
+const FINANCE_CONFIG = {
+  day: { label: 'Today', days: 1 },
+  week: { label: 'This Week', days: 7 },
+  month: { label: 'This Month', days: 30 },
+};
+
 const getSuspensionLabel = (barber) => {
   if (!barber?.suspendedUntil) {
     return '';
@@ -76,6 +82,7 @@ const AdminDashboard = () => {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [activeView, setActiveView] = useState('overview');
+  const [financeRange, setFinanceRange] = useState('week');
   const [selectedBarber, setSelectedBarber] = useState(null);
   const [actionLoading, setActionLoading] = useState('');
   const [appointmentsPage, setAppointmentsPage] = useState(1);
@@ -201,6 +208,114 @@ const AdminDashboard = () => {
     appointment.barberId?.shopName?.toLowerCase().includes(q) ||
     appointment.status?.toLowerCase().includes(q)
   );
+  const filteredActiveBarbers = analytics.barberRankings.filter((barber) =>
+    !q ||
+    barber.shopName?.toLowerCase().includes(q) ||
+    barber.userId?.name?.toLowerCase().includes(q) ||
+    barber.userId?.email?.toLowerCase().includes(q)
+  );
+  const filteredCustomers = analytics.customers.filter((customer) =>
+    !q ||
+    customer.name?.toLowerCase().includes(q) ||
+    customer.email?.toLowerCase().includes(q) ||
+    customer.phone?.toLowerCase().includes(q)
+  );
+  const filteredServices = services.filter((service) =>
+    !q ||
+    service.name?.toLowerCase().includes(q) ||
+    service.category?.toLowerCase().includes(q) ||
+    service.description?.toLowerCase().includes(q)
+  );
+
+  const topRevenueBarbers = analytics.barberRankings.slice(0, 5);
+  const maxRevenue = Math.max(...topRevenueBarbers.map((barber) => Number(barber.revenue || 0)), 1);
+
+  const financeConfig = {
+    day: { label: 'Today', days: 1 },
+    week: { label: 'This Week', days: 7 },
+    month: { label: 'This Month', days: 30 },
+  };
+
+  const financeMetrics = useMemo(() => {
+    const now = new Date();
+    const { days } = FINANCE_CONFIG[financeRange];
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (days - 1));
+
+    const invoicesInRange = invoices.filter((invoice) => {
+      const invoiceDate = new Date(invoice.invoiceDate || invoice.createdAt || null);
+      return (
+        invoice.paymentStatus === 'completed' &&
+        invoiceDate instanceof Date &&
+        !Number.isNaN(invoiceDate.getTime()) &&
+        invoiceDate >= start
+      );
+    });
+
+    const appointmentsInRange = appointments.filter((appointment) => {
+      const appointmentDate = new Date(appointment.appointmentDate || null);
+      return (
+        appointment.status === 'completed' &&
+        appointmentDate instanceof Date &&
+        !Number.isNaN(appointmentDate.getTime()) &&
+        appointmentDate >= start
+      );
+    });
+
+    const customerIds = new Set(
+      appointmentsInRange
+        .map((appointment) => appointment.customerId?._id)
+        .filter(Boolean)
+    );
+
+    const revenue = invoicesInRange.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+      + appointmentsInRange
+          .filter((appointment) => !invoices.some((invoice) => String(invoice.appointmentId?._id || invoice.appointmentId) === String(appointment._id)))
+          .reduce((sum, appointment) => sum + Number(appointment.price || 0), 0);
+
+    const bucketMap = Array.from({ length: days }).map((_, index) => {
+      const labelDate = new Date(start);
+      labelDate.setDate(start.getDate() + index);
+      const label = financeRange === 'day'
+        ? `${labelDate.getHours()}:00`
+        : labelDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      const dayStart = new Date(labelDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(labelDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const dayRevenue = invoicesInRange
+        .filter((invoice) => {
+          const invoiceDate = new Date(invoice.invoiceDate || invoice.createdAt || null);
+          return invoiceDate >= dayStart && invoiceDate <= dayEnd;
+        })
+        .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
+      const dayBookings = appointmentsInRange.filter((appointment) => {
+        const appointmentDate = new Date(appointment.appointmentDate || null);
+        return appointmentDate >= dayStart && appointmentDate <= dayEnd;
+      }).length;
+
+      return {
+        label,
+        revenue: dayRevenue,
+        bookings: dayBookings,
+      };
+    });
+
+    const maxBucketRevenue = Math.max(...bucketMap.map((item) => item.revenue), 1);
+
+    return {
+      revenue,
+      bookings: appointmentsInRange.length,
+      customers: customerIds.size,
+      invoices: invoicesInRange.length,
+      bucketMap,
+      maxBucketRevenue,
+    };
+  }, [appointments, financeRange, invoices]);
+
   const totalAppointmentPages = Math.max(1, Math.ceil(filteredAppointments.length / PAGE_SIZE));
   const currentAppointmentPage = Math.min(appointmentsPage, totalAppointmentPages);
   const paginatedAppointments = filteredAppointments.slice(
@@ -282,7 +397,7 @@ const AdminDashboard = () => {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/80 py-3 pl-10 pr-4 text-sm text-white outline-none focus:border-amber-300/50 sm:w-72"
-                placeholder="Search reports, shops, users"
+                placeholder="Search reports, barbers, customers, services, bookings"
               />
             </div>
             <button onClick={() => fetchDashboard({ silent: true })} className="theme-secondary-btn">
@@ -312,7 +427,7 @@ const AdminDashboard = () => {
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard title="Revenue" value={formatCurrency(analytics.totalRevenue)} helper="Completed paid invoices" icon={IndianRupee} tone="bg-emerald-400/10 text-emerald-200" />
-          <StatCard title="Appointments" value={appointments.length} helper={`${analytics.completedAppointments} completed, ${analytics.scheduledAppointments} scheduled`} icon={CalendarCheck} tone="bg-sky-400/10 text-sky-200" />
+          <StatCard title="Appointments" value={analytics.completedAppointments + analytics.scheduledAppointments} helper={`${analytics.completedAppointments} completed, ${analytics.scheduledAppointments} scheduled`} icon={CalendarCheck} tone="bg-sky-400/10 text-sky-200" />
           <StatCard title="Barbers" value={barbers.length} helper={`${pendingBarbers.length} pending, ${analytics.suspendedBarbers} suspended`} icon={Scissors} tone="bg-violet-400/10 text-violet-200" />
           <StatCard title="Reports" value={analytics.openReports} helper={`${analytics.verifiedReports} verified, ${analytics.rejectedReports} rejected`} icon={AlertTriangle} tone="bg-rose-400/10 text-rose-200" />
         </section>
@@ -399,15 +514,23 @@ const AdminDashboard = () => {
                       {report.adminNote && <p className="mt-3 text-sm text-amber-100">Admin note: {report.adminNote}</p>}
                     </div>
                     <div className="flex flex-wrap gap-2 lg:flex-col">
-                      <button disabled={actionLoading === report._id} onClick={() => handleReportAction(report._id, { status: 'verified', actionType: 'suspended', suspendedDays: 3, adminNote: 'Verified by admin. Shop suspended for 3 days.' })} className="theme-danger-btn text-sm">
-                        Suspend 3 Days
-                      </button>
-                      <button disabled={actionLoading === report._id} onClick={() => handleReportAction(report._id, { status: 'verified', actionType: 'suspended', suspendedDays: 7, adminNote: 'Verified by admin. Shop suspended for 7 days.' })} className="theme-danger-btn text-sm">
-                        Suspend 7 Days
-                      </button>
-                      <button disabled={actionLoading === report._id} onClick={() => handleReportAction(report._id, { status: 'rejected', adminNote: 'Report rejected after verification.' })} className="theme-secondary-btn text-sm">
-                        Reject Report
-                      </button>
+                      {report.status === 'open' ? (
+                        <>
+                          <button disabled={actionLoading === report._id} onClick={() => handleReportAction(report._id, { status: 'verified', actionType: 'suspended', suspendedDays: 3, adminNote: 'Verified by admin. Shop suspended for 3 days.' })} className="theme-danger-btn text-sm">
+                            Suspend 3 Days
+                          </button>
+                          <button disabled={actionLoading === report._id} onClick={() => handleReportAction(report._id, { status: 'verified', actionType: 'suspended', suspendedDays: 7, adminNote: 'Verified by admin. Shop suspended for 7 days.' })} className="theme-danger-btn text-sm">
+                            Suspend 7 Days
+                          </button>
+                          <button disabled={actionLoading === report._id} onClick={() => handleReportAction(report._id, { status: 'rejected', adminNote: 'Report rejected after verification.' })} className="theme-secondary-btn text-sm">
+                            Reject Report
+                          </button>
+                        </>
+                      ) : (
+                        <span className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200">
+                          Report is already {report.status}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -422,7 +545,7 @@ const AdminDashboard = () => {
             <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
                 <h2 className="text-2xl font-semibold">All Bookings</h2>
-                <p className="mt-2 text-sm text-slate-400">Har page par 10 bookings show hongi.</p>
+                <p className="mt-2 text-sm text-slate-400">Showing up to {PAGE_SIZE} bookings per page. If fewer than {PAGE_SIZE} bookings exist, only those bookings are shown.</p>
               </div>
               <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
                 {filteredAppointments.length} total
@@ -500,7 +623,7 @@ const AdminDashboard = () => {
             <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
               <h2 className="text-2xl font-semibold">Active Barber Shops</h2>
               <div className="mt-5 space-y-3">
-                {analytics.barberRankings.map((barber) => (
+                {filteredActiveBarbers.map((barber) => (
                   <button key={barber._id} onClick={() => setSelectedBarber(barber)} className="flex w-full items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-left">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -525,7 +648,7 @@ const AdminDashboard = () => {
           <section className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
             <h2 className="text-2xl font-semibold">Customer Management</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {analytics.customers.map((customer) => {
+              {filteredCustomers.map((customer) => {
                 const customerAppointments = appointments.filter((appointment) => appointment.customerId?._id === customer._id);
                 return (
                   <div key={customer._id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-5">
@@ -544,7 +667,7 @@ const AdminDashboard = () => {
           <section className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
             <h2 className="text-2xl font-semibold">Service Management</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {services.map((service) => (
+              {filteredServices.map((service) => (
                 <div key={service._id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-5">
                   <p className="text-xs uppercase tracking-[0.22em] text-amber-300">{service.category}</p>
                   <h3 className="mt-2 text-lg font-semibold">{service.name}</h3>
@@ -557,31 +680,141 @@ const AdminDashboard = () => {
         )}
 
         {activeView === 'finance' && (
-          <section className="mt-8 grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
-              <h2 className="text-2xl font-semibold">Financial Report</h2>
-              <div className="mt-5 space-y-4">
-                <p className="rounded-2xl bg-slate-950/60 p-4 text-emerald-200">Revenue: {formatCurrency(analytics.totalRevenue)}</p>
-                <p className="rounded-2xl bg-slate-950/60 p-4 text-sky-200">Invoices: {invoices.length}</p>
-                <p className="rounded-2xl bg-slate-950/60 p-4 text-violet-200">Completed booking revenue included even when an invoice is missing.</p>
-                <p className="rounded-2xl bg-slate-950/60 p-4 text-amber-200">Average order: {formatCurrency(analytics.completedAppointments ? analytics.totalRevenue / analytics.completedAppointments : 0)}</p>
+          <>
+            <section className="mt-8 grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
+                <h2 className="text-2xl font-semibold">Financial Report</h2>
+                <div className="mt-5 space-y-4">
+                  <p className="rounded-2xl bg-slate-950/60 p-4 text-emerald-200">Revenue: {formatCurrency(analytics.totalRevenue)}</p>
+                  <p className="rounded-2xl bg-slate-950/60 p-4 text-sky-200">Invoices: {invoices.length}</p>
+                  <p className="rounded-2xl bg-slate-950/60 p-4 text-violet-200">Completed booking revenue included even when an invoice is missing.</p>
+                  <p className="rounded-2xl bg-slate-950/60 p-4 text-amber-200">Average order: {formatCurrency(analytics.completedAppointments ? analytics.totalRevenue / analytics.completedAppointments : 0)}</p>
+                </div>
               </div>
-            </div>
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
-              <h2 className="flex items-center gap-2 text-2xl font-semibold"><TrendingUp className="text-emerald-300" /> Recent Money Flow</h2>
-              <div className="mt-5 space-y-3">
-                {invoices.slice(0, 8).map((invoice) => (
-                  <div key={invoice._id} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                    <div>
-                      <p className="font-semibold">{invoice.invoiceNumber || 'Invoice'}</p>
-                      <p className="text-sm text-slate-400">{formatDate(invoice.invoiceDate)} · {invoice.paymentStatus}</p>
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
+                <h2 className="flex items-center gap-2 text-2xl font-semibold"><TrendingUp className="text-emerald-300" /> Recent Money Flow</h2>
+                <div className="mt-5 space-y-3">
+                  {invoices.slice(0, 8).map((invoice) => (
+                    <div key={invoice._id} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                      <div>
+                        <p className="font-semibold">{invoice.invoiceNumber || 'Invoice'}</p>
+                        <p className="text-sm text-slate-400">{formatDate(invoice.invoiceDate)} · {invoice.paymentStatus}</p>
+                      </div>
+                      <p className="font-semibold text-emerald-200">{formatCurrency(invoice.amount)}</p>
                     </div>
-                    <p className="font-semibold text-emerald-200">{formatCurrency(invoice.amount)}</p>
+                  ))}
+                </div>
+              </div>
+            </section>
+            <section className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-2xl font-semibold">Revenue & Booking Trends</h2>
+                  <p className="mt-2 text-sm text-slate-400">Use the buttons to switch between day, week, and month views for revenue and booking patterns.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {['day', 'week', 'month'].map((range) => (
+                    <button
+                      key={range}
+                      type="button"
+                      onClick={() => setFinanceRange(range)}
+                      className={cn(
+                        'rounded-full border px-4 py-2 text-sm transition',
+                        financeRange === range
+                          ? 'border-amber-300 bg-amber-400/15 text-amber-100'
+                          : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
+                      )}
+                    >
+                      {range === 'day' ? 'Day' : range === 'week' ? 'Week' : 'Month'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-6 space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl bg-slate-950/60 p-4">
+                    <p className="text-sm text-slate-400">{FINANCE_CONFIG[financeRange].label} Revenue</p>
+                    <p className="mt-3 text-3xl font-semibold text-emerald-200">{formatCurrency(financeMetrics.revenue)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-950/60 p-4">
+                    <p className="text-sm text-slate-400">{FINANCE_CONFIG[financeRange].label} Completed Bookings</p>
+                    <p className="mt-3 text-3xl font-semibold text-sky-200">{financeMetrics.bookings}</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-slate-950/60 p-4">
+                  <div className="mb-4 flex items-center justify-between text-sm text-slate-400">
+                    <span>Bar chart shows revenue and booking volume for each {financeRange === 'day' ? 'hour' : 'day'}.</span>
+                    <span className="font-semibold text-slate-200">{financeMetrics.bucketMap.length} points</span>
+                  </div>
+                  <div className="relative overflow-x-auto rounded-3xl border border-white/10 bg-slate-900/90 p-4">
+                    <div className="flex h-64 items-end gap-3 min-w-full">
+                      {financeMetrics.bucketMap.map((bucket) => {
+                        const revenueHeight = financeMetrics.maxBucketRevenue
+                          ? Math.max(16, Math.round((bucket.revenue / financeMetrics.maxBucketRevenue) * 100))
+                          : 16;
+                        const maxBookings = Math.max(...financeMetrics.bucketMap.map((item) => item.bookings), 1);
+                        const bookingHeight = maxBookings
+                          ? Math.max(16, Math.round((bucket.bookings / maxBookings) * 100))
+                          : 16;
+
+                        return (
+                          <div key={bucket.label} className="flex h-full flex-col items-center gap-2 text-center">
+                            <div className="flex h-full items-end gap-1">
+                              <div className="flex w-3 flex-col justify-end rounded-t-3xl bg-gradient-to-b from-emerald-400 to-emerald-600"
+                                style={{ height: `${revenueHeight}%`, minHeight: 20 }}
+                                title={`Revenue: ${formatCurrency(bucket.revenue)}`}
+                              >
+                              </div>
+                              <div className="flex w-3 flex-col justify-end rounded-t-3xl bg-gradient-to-b from-sky-400 to-sky-600"
+                                style={{ height: `${bookingHeight}%`, minHeight: 20 }}
+                                title={`Bookings: ${bucket.bookings}`}
+                              >
+                              </div>
+                            </div>
+                            <div className="mt-2 text-[10px] leading-4 text-slate-300">
+                              <div>{bucket.label}</div>
+                              <div className="mt-1 text-xs text-slate-400">{bucket.bookings} bk</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 left-0 h-px bg-white/10" />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-400 sm:grid-cols-4">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" /> Revenue
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-sky-400" /> Bookings
+                    </div>
+                    <div>Range: {FINANCE_CONFIG[financeRange].label}</div>
+                    <div>Total revenue points: {financeMetrics.bucketMap.length}</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
+              <h2 className="text-2xl font-semibold">Revenue Leaderboard</h2>
+              <div className="mt-5 space-y-4">
+                {topRevenueBarbers.map((barber) => (
+                  <div key={barber._id} className="space-y-2">
+                    <div className="flex items-center justify-between gap-4 text-sm text-slate-300">
+                      <span>{barber.shopName || 'Unnamed shop'}</span>
+                      <span className="font-semibold text-emerald-200">{formatCurrency(barber.revenue)}</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-sky-400 to-violet-400"
+                        style={{ width: `${Math.round((Number(barber.revenue || 0) / maxRevenue) * 100)}%` }}
+                      />
+                    </div>
                   </div>
                 ))}
+                {topRevenueBarbers.length === 0 && <p className="text-sm text-slate-400">No revenue data available yet.</p>}
               </div>
-            </div>
-          </section>
+            </section>
+          </>
         )}
 
         {activeView === 'settings' && (

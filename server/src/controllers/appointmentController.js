@@ -50,7 +50,7 @@ export const getUserAppointments = async (req, res, next) => {
   try {
     const appointments = await Appointment.find({ customerId: req.user.userId })
       .populate(appointmentPopulate)
-      .sort({ appointmentDate: -1 });
+      .sort({ createdAt: -1, appointmentDate: -1 });
 
     res.json({
       success: true,
@@ -148,12 +148,39 @@ export const createAppointment = async (req, res, next) => {
         throw new AppError('Selected staff member is not available in this shop', 400);
       }
 
-      const slotStart = new Date(appointmentDate);
-      const slotEnd = new Date(appointmentDate);
+      const requestedDate = new Date(appointmentDate);
+      if (Number.isNaN(requestedDate.getTime())) {
+        throw new AppError('Selected appointment date is invalid', 400);
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (requestedDate < today) {
+        throw new AppError('Appointment date cannot be in the past', 400);
+      }
+
+      const availableDay = requestedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const availability = barberProfile.availability?.[availableDay];
+      const workingStart = availability?.start || barberProfile.openingTime;
+      const workingEnd = availability?.end || barberProfile.closingTime;
+
+      if (availability && availability.isWorking === false) {
+        throw new AppError('Selected barber is not working on the chosen day', 400);
+      }
+
+      if (appointmentTime < workingStart || appointmentTime >= workingEnd) {
+        throw new AppError(
+          `Selected time must be between ${workingStart} and ${workingEnd}`,
+          400
+        );
+      }
+
+      const slotStart = new Date(requestedDate);
       slotStart.setHours(0, 0, 0, 0);
+      const slotEnd = new Date(requestedDate);
       slotEnd.setHours(23, 59, 59, 999);
 
-      const existingAppointments = await Appointment.countDocuments({
+      const existingQuery = {
         barberId: assignedBarberId,
         appointmentDate: {
           $gte: slotStart,
@@ -161,9 +188,19 @@ export const createAppointment = async (req, res, next) => {
         },
         appointmentTime,
         status: 'scheduled',
-      });
+      };
+      if (selectedStaffName) {
+        existingQuery.selectedStaffName = selectedStaffName;
+      }
 
-      if (existingAppointments >= (barberProfile.slotCapacity || 3)) {
+      const existingAppointments = await Appointment.countDocuments(existingQuery);
+      const effectiveCapacity = selectedStaffName
+        ? 1
+        : barberProfile.staffMembers.length > 0
+        ? barberProfile.staffMembers.length
+        : barberProfile.slotCapacity || 3;
+
+      if (existingAppointments >= effectiveCapacity) {
         throw new AppError(
           'This time slot is sold out. Please choose another time.',
           409
@@ -348,7 +385,7 @@ export const getBarberAppointments = async (req, res, next) => {
 
     const appointments = await Appointment.find({ barberId: barber._id })
       .populate(appointmentPopulate)
-      .sort({ createdAt: 1 });
+      .sort({ createdAt: -1, appointmentDate: -1 });
 
     res.json({
       success: true,

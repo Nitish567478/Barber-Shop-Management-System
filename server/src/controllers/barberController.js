@@ -2,6 +2,25 @@ import { Barber } from '../models/Barber.js';
 import { User } from '../models/User.js';
 import { AppError } from '../middleware/errorHandler.js';
 
+const parseBarberStringArrayField = (value, maxItems = Infinity) => {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item || '').trim())
+      .filter(Boolean)
+      .slice(0, maxItems);
+  }
+
+  return String(value || '')
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, maxItems);
+};
+
 const publicBarberFilters = {
   isActive: true,
   isOpen: { $ne: false },
@@ -155,6 +174,9 @@ export const updateBarber = async (req, res, next) => {
       slotCapacity,
     } = req.body;
 
+    const normalizedShopImages = parseBarberStringArrayField(shopImages, 5);
+    const normalizedStaffMembers = parseBarberStringArrayField(staffMembers);
+
     const barber = await Barber.findByIdAndUpdate(
       req.params.id,
       {
@@ -166,13 +188,13 @@ export const updateBarber = async (req, res, next) => {
         shopName,
         bio,
         location,
-        shopImage,
+        ...(normalizedShopImages !== undefined ? { shopImages: normalizedShopImages } : {}),
         openingTime,
         closingTime,
         listingStatus,
         isApproved,
-        staffMembers,
-        slotCapacity,
+        ...(normalizedStaffMembers !== undefined ? { staffMembers: normalizedStaffMembers } : {}),
+        ...(slotCapacity !== undefined ? { slotCapacity: Math.max(1, Number(slotCapacity) || 1) } : {}),
       },
       { new: true, runValidators: true }
     ).populate('userId', 'name email phone');
@@ -243,7 +265,7 @@ export const updateMyBarberProfile = async (req, res, next) => {
       location,
       isActive,
       isOpen,
-      shopImage,
+      shopImages,
       openingTime,
       closingTime,
       submitForApproval,
@@ -284,14 +306,10 @@ export const updateMyBarberProfile = async (req, res, next) => {
       updates.isOpen = Boolean(isOpen);
     }
     if (shopImages !== undefined) {
-      // Normalize to array and limit to 5 items
-      updates.shopImages = Array.isArray(shopImages)
-        ? shopImages.map(String).map(s => s.trim()).filter(Boolean).slice(0,5)
-        : String(shopImages || '')
-            .split(/\r?\n|,/) // allow comma or newline separated input
-            .map((s) => s.trim())
-            .filter(Boolean)
-            .slice(0,5);
+      const normalizedShopImages = parseBarberStringArrayField(shopImages, 5);
+      if (normalizedShopImages?.length > 0) {
+        updates.shopImages = normalizedShopImages;
+      }
     }
     if (openingTime !== undefined) {
       updates.openingTime = openingTime;
@@ -300,12 +318,7 @@ export const updateMyBarberProfile = async (req, res, next) => {
       updates.closingTime = closingTime;
     }
     if (staffMembers !== undefined) {
-      updates.staffMembers = Array.isArray(staffMembers)
-        ? staffMembers.map((item) => String(item).trim()).filter(Boolean)
-        : String(staffMembers || '')
-            .split(/\r?\n|,/)
-            .map((item) => item.trim())
-            .filter(Boolean);
+      updates.staffMembers = parseBarberStringArrayField(staffMembers) || [];
     }
     if (slotCapacity !== undefined) {
       updates.slotCapacity = Math.max(1, Number(slotCapacity) || 1);

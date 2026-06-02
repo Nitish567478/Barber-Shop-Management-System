@@ -104,6 +104,10 @@ export const verifyReport = async (req, res, next) => {
       throw new AppError('Invalid report status', 400);
     }
 
+    if (report.status !== 'open' && report.status !== status) {
+      throw new AppError('Only open reports can be reviewed again', 400);
+    }
+
     report.status = status;
     report.adminNote = adminNote;
     report.actionType = status === 'verified' ? actionType : 'none';

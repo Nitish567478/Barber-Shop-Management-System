@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -22,7 +22,7 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Close mobile menu automatically on route change
-  React.useEffect(() => {
+  useEffect(() => {
     setIsMenuOpen(false);
   }, [pathname]);
 
@@ -60,18 +60,18 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
                 ? "top-[7px] -rotate-45"
                 : ""
             }`}
-          />
+          /> 
         </span>
       </button>
 
       <div
-        className={`overflow-hidden transition-all duration-300 md:hidden ${
+        className={`absolute inset-x-4 top-full z-40 overflow-hidden rounded-[1.7rem] border border-white/10 bg-slate-900/95 p-4 shadow-2xl shadow-black/60 transition-all duration-300 md:hidden ${
           isMenuOpen
-            ? "max-h-[650px] pt-4 opacity-100"
+            ? "max-h-[calc(100vh-7rem)] opacity-100"
             : "max-h-0 opacity-0"
         }`}
       >
-        <div className="space-y-4 rounded-[1.7rem] border border-white/10 bg-slate-900/95 p-4 shadow-2xl shadow-black/30">
+        <div className="space-y-4 overflow-y-auto pb-4">
           <div className="grid gap-2">
             {navLinks.map((link) => (
               <NavLink
@@ -166,7 +166,7 @@ function Navbar() {
       <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
         {/* MAIN BAR */}
 
-        <div className="flex items-center justify-between gap-4 rounded-[1.7rem] border border-white/10 bg-white/[0.03] px-4 py-3 shadow-xl shadow-black/20">
+        <div className="relative flex items-center justify-between gap-4 rounded-[1.7rem] border border-white/10 bg-white/[0.03] px-4 py-3 shadow-xl shadow-black/20">
           {/* LOGO */}
           <button
             onClick={() => navigate("/")}

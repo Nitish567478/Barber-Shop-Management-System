@@ -91,6 +91,21 @@ const formatHours = (openingTime, closingTime) => {
   return `${convertTo12Hour(openingTime)} - ${convertTo12Hour(closingTime)}`;
 };
 
+const parseListInput = (value, maxItems = Infinity) => {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item || '').trim())
+      .filter(Boolean)
+      .slice(0, maxItems);
+  }
+
+  return String(value || '')
+    .split(/\r?\n|,/) 
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .slice(0, maxItems);
+};
+
 const BarberDashboard = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
@@ -105,8 +120,11 @@ const BarberDashboard = () => {
     specialization: '',
     location: '',
     bio: '',
-    // newline or comma separated list of image URLs (1-5)
-    shopImages: '',
+    // single image URL for the barber shop
+    shopImage: '',
+    // newline or comma separated list of staff names
+    staffMembers: '',
+    slotCapacity: 3,
     openingTime: '09:00',
     closingTime: '18:00',
     isActive: true,
@@ -137,11 +155,13 @@ const BarberDashboard = () => {
       specialization: (nextProfile.specialization || []).join(', '),
       location: nextProfile.location || '',
       bio: nextProfile.bio || '',
-      shopImages: Array.isArray(nextProfile.shopImages)
-        ? nextProfile.shopImages.join('\n')
+      shopImage: Array.isArray(nextProfile.shopImages) && nextProfile.shopImages.length > 0
+        ? String(nextProfile.shopImages[0])
         : nextProfile.shopImage
         ? String(nextProfile.shopImage)
         : '',
+      staffMembers: parseListInput(nextProfile.staffMembers).join(', '),
+      slotCapacity: nextProfile.slotCapacity || 3,
       openingTime: nextProfile.openingTime || '09:00',
       closingTime: nextProfile.closingTime || '18:00',
       isActive: nextProfile.isActive !== false,
@@ -234,20 +254,23 @@ const BarberDashboard = () => {
     try {
       setSavingProfile(true);
       clearBanner();
-      let payload = {
-        ...profileForm,
+      const payload = {
+        shopName: profileForm.shopName,
         experience: Number(profileForm.experience) || 0,
+        specialization: profileForm.specialization,
+        location: profileForm.location,
+        bio: profileForm.bio,
+        openingTime: profileForm.openingTime,
+        closingTime: profileForm.closingTime,
+        isActive: profileForm.isActive,
+        isOpen: profileForm.isOpen,
+        slotCapacity: Math.max(1, Number(profileForm.slotCapacity) || 1),
+        staffMembers: parseListInput(profileForm.staffMembers),
       };
 
-      // Only include shopImages if user provided at least one URL; do not
-      // send an empty array which would clear existing images unintentionally.
-      if (profileForm.shopImages && profileForm.shopImages.trim()) {
-        const shopImagesPayload = profileForm.shopImages
-          .split(/\r?\n|,/) // allow newline or comma separated
-          .map((s) => String(s).trim())
-          .filter(Boolean)
-          .slice(0, 5);
-        payload.shopImages = shopImagesPayload;
+      const shopImageUrl = String(profileForm.shopImage || '').trim();
+      if (shopImageUrl) {
+        payload.shopImages = [shopImageUrl];
       }
 
       const response = await barbersAPI.updateMine(payload);
@@ -262,7 +285,7 @@ const BarberDashboard = () => {
           : 'Barber profile saved. Submit it for admin approval before it can appear publicly.'
       );
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update barber profile');
+      setError(err.response?.data?.message || err.message || 'Failed to update barber profile');
     } finally {
       setSavingProfile(false);
     }
@@ -423,9 +446,9 @@ const BarberDashboard = () => {
   const completedBookings = bookings.filter((booking) => booking.status === 'completed');
   const sortedBookings = [...bookings].sort(
     (a, b) => {
-      const createdDiff = new Date(a.createdAt || a.appointmentDate) - new Date(b.createdAt || b.appointmentDate);
+      const createdDiff = new Date(b.createdAt || b.appointmentDate) - new Date(a.createdAt || a.appointmentDate);
       if (createdDiff !== 0) return createdDiff;
-      return String(a._id || '').localeCompare(String(b._id || ''));
+      return String(b._id || '').localeCompare(String(a._id || ''));
     }
   );
   const totalBookingPages = Math.max(1, Math.ceil(sortedBookings.length / PAGE_SIZE));
@@ -440,8 +463,8 @@ const BarberDashboard = () => {
     ? reviews.reduce((sum, booking) => sum + Number(booking.feedback?.rating || 0), 0) / reviews.length
     : 0;
   const totalRevenue = completedBookings.reduce((sum, booking) => sum + (booking.price || 0), 0);
-  const previewImages = profileForm.shopImages
-    ? profileForm.shopImages.split(/\r?\n|,/).map((s) => s.trim()).filter(Boolean).slice(0,5)
+  const previewImages = profileForm.shopImage?.trim()
+    ? [profileForm.shopImage.trim()]
     : Array.isArray(profile?.shopImages) && profile.shopImages.length > 0
     ? profile.shopImages
     : profile?.shopImage
@@ -661,8 +684,15 @@ const BarberDashboard = () => {
               </div>
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-slate-200">Shop Photo URL</label>
-                      <textarea name="shopImages" value={profileForm.shopImages} onChange={handleProfileChange} className="theme-input h-24" placeholder="Enter 1-5 image URLs (newline or comma separated)" />
-                <p className="mt-2 text-xs text-slate-400"> Use this link for image URLs:{' '}
+                <input
+                  name="shopImage"
+                  value={profileForm.shopImage}
+                  onChange={handleProfileChange}
+                  className="theme-input"
+                  placeholder="Enter a single shop image URL"
+                />
+                <p className="mt-2 text-xs text-slate-400">
+                  Enter a single shop image URL. Use this tool to generate one if needed:{' '}
                   <a
                     href="https://image-to-url-iota.vercel.app/"
                     target="_blank"
@@ -670,7 +700,35 @@ const BarberDashboard = () => {
                     className="text-amber-400 hover:underline"
                   >
                     Image to URL Converter
-                  </a> Upload your shop image there and dragon drop the generated image URL.
+                  </a>
+                </p>
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-slate-200">Staff Members</label>
+                <textarea
+                  name="staffMembers"
+                  value={profileForm.staffMembers}
+                  onChange={handleProfileChange}
+                  className="theme-input h-24"
+                  placeholder="Enter team member names (comma or newline separated)"
+                />
+                <p className="mt-2 text-xs text-slate-400">
+                  Your team members help determine how many customers can book at the same time. Enter each staff name on a new line or comma separated.
+                </p>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-200">Slot Capacity</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  name="slotCapacity"
+                  value={profileForm.slotCapacity}
+                  onChange={handleProfileChange}
+                  className="theme-input"
+                />
+                <p className="mt-2 text-xs text-slate-400">
+                  Default number of bookings allowed per time slot when staff is not set. If you have staff members, their count is used instead.
                 </p>
               </div>
               <div>
@@ -739,6 +797,11 @@ const BarberDashboard = () => {
                   </span>
                   <span className="rounded-full border border-sky-300/20 bg-sky-400/10 px-3 py-2 text-sky-200">
                     {formatHours(profileForm.openingTime, profileForm.closingTime)}
+                  </span>
+                  <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 text-emerald-200">
+                    {profileForm.staffMembers.trim()
+                      ? `${profileForm.staffMembers.split(/\r?\n|,/).filter(Boolean).length} staff`
+                      : `${profileForm.slotCapacity} slot capacity`}
                   </span>
                 </div>
                 <p className="mt-4 text-sm leading-6 text-slate-400">
