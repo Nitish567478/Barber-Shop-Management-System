@@ -257,7 +257,7 @@ const BarberDashboard = () => {
       const payload = {
         shopName: profileForm.shopName,
         experience: Number(profileForm.experience) || 0,
-        specialization: profileForm.specialization,
+        specialization: parseListInput(profileForm.specialization),
         location: profileForm.location,
         bio: profileForm.bio,
         openingTime: profileForm.openingTime,
@@ -269,9 +269,7 @@ const BarberDashboard = () => {
       };
 
       const shopImageUrl = String(profileForm.shopImage || '').trim();
-      if (shopImageUrl) {
-        payload.shopImages = [shopImageUrl];
-      }
+      payload.shopImages = shopImageUrl ? [shopImageUrl] : [];
 
       const response = await barbersAPI.updateMine(payload);
       const nextProfile = response.data.barber;

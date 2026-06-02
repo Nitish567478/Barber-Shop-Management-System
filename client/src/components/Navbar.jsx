@@ -65,10 +65,18 @@ function MobileMenu({ showDashboard, user, onLogout, keyId }) {
       </button>
 
       <div
-        className={`absolute inset-x-4 top-full z-40 overflow-hidden rounded-[1.7rem] border border-white/10 bg-slate-900/95 p-4 shadow-2xl shadow-black/60 transition-all duration-300 md:hidden ${
+        className={`fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
+          isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setIsMenuOpen(false)}
+        aria-hidden="true"
+      />
+
+      <div
+        className={`fixed left-4 right-4 top-24 z-50 overflow-hidden rounded-[1.7rem] border border-white/10 bg-slate-900/95 p-4 shadow-2xl shadow-black/60 transition-all duration-300 md:hidden ${
           isMenuOpen
-            ? "max-h-[calc(100vh-7rem)] opacity-100"
-            : "max-h-0 opacity-0"
+            ? 'max-h-[calc(100vh-7rem)] opacity-100'
+            : 'max-h-0 opacity-0'
         }`}
       >
         <div className="space-y-4 overflow-y-auto pb-4">

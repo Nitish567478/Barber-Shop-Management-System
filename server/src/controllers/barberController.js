@@ -273,21 +273,23 @@ export const updateMyBarberProfile = async (req, res, next) => {
       slotCapacity,
     } = req.body;
 
-    const normalizedSpecialization = Array.isArray(specialization)
-      ? specialization
-      : String(specialization || '')
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean);
+    const normalizedSpecialization = specialization !== undefined
+      ? Array.isArray(specialization)
+        ? specialization
+        : String(specialization)
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean)
+      : undefined;
 
     const updates = {};
-    if (normalizedSpecialization.length > 0) {
+    if (specialization !== undefined) {
       updates.specialization = normalizedSpecialization;
     }
     if (experience !== undefined) {
       updates.experience = experience;
     }
-    if (availability) {
+    if (availability !== undefined) {
       updates.availability = availability;
     }
     if (shopName !== undefined) {
@@ -307,9 +309,7 @@ export const updateMyBarberProfile = async (req, res, next) => {
     }
     if (shopImages !== undefined) {
       const normalizedShopImages = parseBarberStringArrayField(shopImages, 5);
-      if (normalizedShopImages?.length > 0) {
-        updates.shopImages = normalizedShopImages;
-      }
+      updates.shopImages = normalizedShopImages || [];
     }
     if (openingTime !== undefined) {
       updates.openingTime = openingTime;
