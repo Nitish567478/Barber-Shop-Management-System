@@ -13,11 +13,13 @@
     "dev:client": "cd client && npm run dev",
     "build": "npm run build:server && npm run build:client",
     "build:server": "cd server && npm run build",
-    "build:client": "cd client && npm run build"
+    "build:client": "cd client && npm run build",
+    "doctor": "npx react-doctor@latest"
   },
   "devDependencies": {
     "concurrently": "^8.0.0",
-    "prerender-spa-plugin": "^3.4.0"
+    "prerender-spa-plugin": "^3.4.0",
+    "react-doctor": "^0.2.16"
   },
   "dependencies": {
     "react-helmet-async": "^3.0.0"

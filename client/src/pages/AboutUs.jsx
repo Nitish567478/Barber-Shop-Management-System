@@ -3,18 +3,19 @@ import { Link } from 'react-router-dom';
 import BarberShopLoader from "../components/BarberShopLoader";
 
 
+const stats = [
+  { value: '5000+', label: 'Happy Customers' },
+  { value: '15+', label: 'Expert Barbers' },
+  { value: '98%', label: 'Satisfaction Rate' },
+  { value: '2026', label: 'Founded' },
+];
+
 const AboutUs = ({loading}) => {
 
   if(loading){
     return <BarberShopLoader />;
   }
 
-  const stats = [
-    { value: '5000+', label: 'Happy Customers' },
-    { value: '15+', label: 'Expert Barbers' },
-    { value: '98%', label: 'Satisfaction Rate' },
-    { value: '2026', label: 'Founded' },
-  ];
 
   const values = [
     {
@@ -39,7 +40,7 @@ const AboutUs = ({loading}) => {
     },
   ];
 
-  const timeline = [
+const timeline = [
     {
       year: '2026',
       title: 'The Beginning',
@@ -77,10 +78,9 @@ const AboutUs = ({loading}) => {
 
               <h1 className="mt-5 text-5xl font-black leading-tight sm:text-6xl lg:text-7xl">
                 About
-                <span className="block bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-400 bg-clip-text text-transparent">
-                  Our Studio
-                </span>
+                <span className="block text-amber-400">Our Studio</span>
               </h1>
+
 
               <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-300">
                 A modern barbershop built in 2026 with one mission: deliver
@@ -89,16 +89,18 @@ const AboutUs = ({loading}) => {
 
               <div className="mt-10 flex flex-wrap gap-4">
                 <Link to="/barbers">
-                  <button className="rounded-full bg-amber-400 px-7 py-4 font-semibold text-slate-950 hover:bg-amber-300">
+                  <button type="button" className="rounded-full bg-amber-400 px-7 py-4 font-semibold text-slate-950 hover:bg-amber-300">
+
                     Book Appointment
                   </button>
                 </Link>
 
                 <Link to="/services">
-                  <button className="rounded-full border border-white/15 px-7 py-4 text-white hover:border-white/40">
+                  <button type="button" className="rounded-full border border-white/15 px-7 py-4 text-white hover:border-white/40">
                     Explore Services
                   </button>
                 </Link>
+
               </div>
             </div>
 
@@ -129,10 +131,11 @@ const AboutUs = ({loading}) => {
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((item, index) => (
-            <div
-              key={index}
+              <div
+              key={item.value}
               className="rounded-[2rem] border border-white/10 bg-white/5 p-7 text-center"
             >
+
               <h3 className="text-4xl font-bold text-amber-400">
                 {item.value}
               </h3>
@@ -200,11 +203,12 @@ const AboutUs = ({loading}) => {
           </div>
 
           <div className="mt-14 grid gap-7 md:grid-cols-2 xl:grid-cols-4">
-            {values.map((item, index) => (
+            {values.map((item) => (
               <div
-                key={index}
+                key={item.title}
                 className="rounded-[2rem] border border-white/10 bg-white/5 p-8"
               >
+
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400 text-3xl text-slate-950">
                   {item.icon}
                 </div>

@@ -4,7 +4,7 @@ const DEFAULT_SERVICES = [
   {
     name: 'Classic Haircut',
     description: 'Traditional haircut with professional styling.',
-    price: 500,
+    price: 550,
     duration: 30,
     category: 'haircut',
     isActive: true,
@@ -12,7 +12,7 @@ const DEFAULT_SERVICES = [
   {
     name: 'Modern Style Haircut',
     description: 'Modern cut with fade or undercut styling.',
-    price: 700,
+    price: 250,
     duration: 45,
     category: 'haircut',
     isActive: true,
@@ -20,7 +20,7 @@ const DEFAULT_SERVICES = [
   {
     name: 'Clean Shave',
     description: 'Professional shaving service with clean finishing.',
-    price: 300,
+    price: 100,
     duration: 30,
     category: 'shaving',
     isActive: true,
@@ -28,7 +28,7 @@ const DEFAULT_SERVICES = [
   {
     name: 'Beard Trim & Shape',
     description: 'Defined beard trimming and shape-up service.',
-    price: 400,
+    price: 200,
     duration: 25,
     category: 'grooming',
     isActive: true,
