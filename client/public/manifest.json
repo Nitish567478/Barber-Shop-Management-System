@@ -1,0 +1,25 @@
+{
+  "short_name": "BarberShop",
+  "name": "Barber Shop & Salon Management System",
+  "description": "Book verified haircuts, beard grooming, and salon stylists online with zero waiting time.",
+  "icons": [
+    {
+      "src": "https://i.ibb.co/0yYptF9d/website-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://i.ibb.co/0yYptF9d/website-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/"
+}
