@@ -1,10 +1,17 @@
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { authAPI } from '../services/api';
+import useAutoDismiss from '../hooks/useAutoDismiss';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  const getStoredToken = () =>
+    localStorage.getItem('token') || sessionStorage.getItem('token');
+
   const getSavedUser = () => {
+    if (!getStoredToken()) {
+      return null;
+    }
     try {
       const rawUser = localStorage.getItem('user:v1') || localStorage.getItem('user');
       return JSON.parse(rawUser || 'null');
@@ -29,8 +36,18 @@ export const AuthProvider = ({ children }) => {
     }
 
     localStorage.removeItem('user:v1');
+    localStorage.removeItem('user');
     setUser(null);
   };
+
+  // Listen to global 401 logout event
+  useEffect(() => {
+    const handleAuthLogout = () => {
+      persistUser(null);
+    };
+    window.addEventListener('auth:logout', handleAuthLogout);
+    return () => window.removeEventListener('auth:logout', handleAuthLogout);
+  }, []);
 
   // Check if saved auth is still valid and sync role from backend profile.
   useEffect(() => {
@@ -85,9 +102,32 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const response = await authAPI.register(userData);
-      return response.data.user;
+      return response.data;
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Registration failed';
+      setError(errorMessage);
+      throw err;
+    }
+  };
+
+  const verifyEmail = async (email, otp, rememberMe = true) => {
+    try {
+      setError(null);
+      const response = await authAPI.verifyEmail({ email, otp });
+      const { token, user } = response.data;
+      if (token && user) {
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
+        if (rememberMe) {
+          localStorage.setItem('token', token);
+        } else {
+          sessionStorage.setItem('token', token);
+        }
+        persistUser(user);
+      }
+      return response.data;
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Email verification failed';
       setError(errorMessage);
       throw err;
     }
@@ -104,7 +144,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, register, logout, updateUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        error,
+        login,
+        register,
+        verifyEmail,
+        logout,
+        updateUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

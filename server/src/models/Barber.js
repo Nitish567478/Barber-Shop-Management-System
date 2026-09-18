@@ -135,6 +135,43 @@ const barberSchema = new mongoose.Schema(
       maxLength: [300, 'Suspension reason cannot exceed 300 characters'],
       default: '',
     },
+    payoutDetails: {
+      upiId: {
+        type: String,
+        trim: true,
+        default: '',
+      },
+      accountHolderName: {
+        type: String,
+        trim: true,
+        default: '',
+      },
+      accountNumber: {
+        type: String,
+        trim: true,
+        default: '',
+      },
+      ifscCode: {
+        type: String,
+        trim: true,
+        uppercase: true,
+        default: '',
+      },
+      bankName: {
+        type: String,
+        trim: true,
+        default: '',
+      },
+      accountType: {
+        type: String,
+        enum: ['savings', 'current'],
+        default: 'savings',
+      },
+      isPaymentActive: {
+        type: Boolean,
+        default: true,
+      },
+    },
   },
   { timestamps: true }
 );

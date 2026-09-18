@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import BarberShopLoader from "../components/BarberShopLoader";
+import useAutoDismiss from '../hooks/useAutoDismiss';
 
 const HelpSupportPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('general');
   const [searchQuery, setSearchQuery] = useState('');
   const [showPopup, setShowPopup] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  useAutoDismiss(successMessage, setSuccessMessage, 4000);
 
   const [formData, setFormData] = useState({
     user_name: '',
@@ -38,7 +41,7 @@ const HelpSupportPage = () => {
         id: 4,
         question: 'What payment methods do you accept?',
         answer:
-          'We accept cash, credit cards, debit cards, and digital payment methods like JazzCash, Easypaisa, and bank transfers.',
+          'We accept UPI (Google Pay, PhonePe, Paytm, BHIM), Credit/Debit Cards, Net Banking, Online Gateway, and Cash at the shop.',
       },
       {
         id: 5,
@@ -78,7 +81,7 @@ const HelpSupportPage = () => {
         id: 10,
         question: 'How do I reset my password?',
         answer:
-          'Password reset support is not wired into the app yet. Contact support for help until that page is added.',
+          'Click "Forgot Password" on the Login page, enter your registered email address, and use the secure 15-minute reset link sent to you.',
       },
       {
         id: 11,
@@ -115,8 +118,7 @@ const HelpSupportPage = () => {
   const sendMessage = (e) => {
     e.preventDefault();
 
-    console.log(formData);
-    alert('My Message Submitted Successfully!');
+    setSuccessMessage('Your message has been submitted successfully! We will get back to you soon.');
 
     setFormData({
       user_name: '',
@@ -149,6 +151,12 @@ const HelpSupportPage = () => {
             Find answers to your questions or contact us for assistance
           </p>
         </div>
+
+        {successMessage && (
+          <div className="mb-6 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">
+            {successMessage}
+          </div>
+        )}
 
         <div className="mb-8">
           <input

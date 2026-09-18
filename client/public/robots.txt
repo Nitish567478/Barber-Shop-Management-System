@@ -1,0 +1,28 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Allow: /services
+Allow: /barbers
+Allow: /book-appointment
+Allow: /about
+Allow: /help
+Allow: /privacy-policy
+Allow: /terms-conditions
+
+# Disallow private user accounts, dashboards, and checkout
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /settings
+Disallow: /my-appointments
+Disallow: /my-invoices
+Disallow: /payment
+
+# Googlebot specific rules
+User-agent: Googlebot
+Allow: /
+Allow: /services
+Allow: /barbers
+Allow: /book-appointment
+
+# Sitemap location for Google Search Console
+Sitemap: https://barbershopranchi.in/sitemap.xml

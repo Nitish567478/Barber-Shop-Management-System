@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
+import useAutoDismiss from '../hooks/useAutoDismiss';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
+
+  // Auto-dismiss success message and fail/error message after 4 seconds
+  useAutoDismiss(error, setError, 4000);
+  useAutoDismiss(message, setMessage, 4000);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {

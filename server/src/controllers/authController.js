@@ -2,7 +2,8 @@ import { User } from '../models/User.js';
 import { Barber } from '../models/Barber.js';
 import { hashPassword, comparePassword, generateToken } from '../utils/helpers.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { sendPasswordResetEmail } from '../utils/email.js';
+import { sendPasswordResetEmail, sendBarberVerificationEmail } from '../utils/email.js';
+import { sendNotification } from '../utils/notifications.js';
 import crypto from 'crypto';
 import { config } from '../config/config.js';
 
@@ -33,17 +34,28 @@ export const register = async (req, res, next) => {
 
     console.log('Email is available');
 
-    // Normalize phone: if 10 digits, prepend +91; if already includes country code, keep +
-    let normalizedPhone = phone ? String(phone).trim() : '';
-    normalizedPhone = normalizedPhone.replace(/[^\d+]/g, '');
-    if (normalizedPhone && !normalizedPhone.startsWith('+')) {
-      const digits = normalizedPhone.replace(/^0+/, '');
-      if (digits.length === 10) normalizedPhone = `+91${digits}`;
-      else normalizedPhone = `+${digits}`;
+    // Strictly require and validate 10-digit mobile number
+    let rawPhone = phone ? String(phone).trim().replace(/\D/g, '') : '';
+    if (rawPhone.length === 12 && rawPhone.startsWith('91')) {
+      rawPhone = rawPhone.slice(2);
     }
+    if (rawPhone.length !== 10 || !/^[6-9]\d{9}$/.test(rawPhone)) {
+      throw new AppError('Mobile number must be exactly 10 digits starting with 6, 7, 8, or 9', 400);
+    }
+    const normalizedPhone = `+91${rawPhone}`;
 
     // Hash password
     const hashedPassword = await hashPassword(password);
+
+    const isBarber = role === 'barber';
+
+    // If registering as a barber, require email verification with 6-digit OTP
+    let otpCode = null;
+    let otpExpires = null;
+    if (isBarber) {
+      otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      otpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+    }
 
     // Create new user
     const user = new User({
@@ -52,11 +64,14 @@ export const register = async (req, res, next) => {
       password: hashedPassword,
       phone: normalizedPhone,
       role: role || 'customer',
+      isEmailVerified: !isBarber, // Customers are verified immediately, barbers require OTP verification
+      emailVerificationOTP: otpCode,
+      emailVerificationExpires: otpExpires,
     });
 
     await user.save();
 
-    if (user.role === 'barber') {
+    if (isBarber) {
       const specializationList = Array.isArray(specialization)
         ? specialization
         : String(specialization || '')
@@ -64,9 +79,11 @@ export const register = async (req, res, next) => {
             .map((item) => item.trim())
             .filter(Boolean);
 
+      const studioName = shopName || `${name}'s Barber Studio`;
+
       await Barber.create({
         userId: user._id,
-        shopName: shopName || `${name}'s Barber Studio`,
+        shopName: studioName,
         experience: Number(experience) || 0,
         specialization:
           specializationList.length > 0 ? specializationList : ['haircut', 'shaving'],
@@ -74,10 +91,47 @@ export const register = async (req, res, next) => {
         location: location || '',
         listingStatus: 'draft',
       });
+
+      // Send 6-digit OTP email to the Barber
+      const delivery = await sendBarberVerificationEmail({
+        to: user.email,
+        userName: user.name,
+        shopName: studioName,
+        otpCode,
+      });
+
+      console.log(`✂️ [BARBER VERIFICATION] OTP sent to ${user.email}: ${otpCode}`);
+
+      return res.status(201).json({
+        success: true,
+        requireVerification: true,
+        message: 'Barber account created! A 6-digit verification code has been sent to your email.',
+        email: user.email,
+        shopName: studioName,
+        ...(delivery?.simulated ? { previewOtp: otpCode } : {}),
+      });
     }
 
-    // Generate token
+    // Generate token for customer
     const token = generateToken(user._id, user.role);
+
+    // Send multi-channel welcome notification for customer
+    try {
+      await sendNotification({
+        type: 'welcome',
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+        },
+        shopName: 'Barabar Shop',
+        link: '/barbers',
+      });
+    } catch (notifErr) {
+      console.warn('⚠️ Welcome notification error:', notifErr.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -89,6 +143,7 @@ export const register = async (req, res, next) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        isEmailVerified: user.isEmailVerified,
         profilePicture: user.profilePicture,
         createdAt: user.createdAt,
       },
@@ -99,7 +154,6 @@ export const register = async (req, res, next) => {
     // Handle MongoDB duplicate key error (E11000)
     if (error.code === 11000) {
       console.error('E11000 Duplicate Key Error detected');
-      console.error('   Check /api/reset endpoint to clear bad indexes');
       const field = Object.keys(error.keyValue || {})[0] || 'email';
       return next(new AppError(`This ${field} is already registered. If you're getting this error repeatedly, please try /api/reset endpoint.`, 409));
     }
@@ -114,6 +168,140 @@ export const register = async (req, res, next) => {
   }
 };
 
+// Verify Barber Email OTP
+export const verifyBarberEmail = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      throw new AppError('Email and 6-digit verification code are required', 400);
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanOtp = String(otp).trim();
+
+    const user = await User.findOne({ email: cleanEmail })
+      .select('+emailVerificationOTP +emailVerificationExpires');
+
+    if (!user) {
+      throw new AppError('No account found with this email address', 404);
+    }
+
+    if (user.isEmailVerified) {
+      return res.json({
+        success: true,
+        alreadyVerified: true,
+        message: 'Your email is already verified. You can sign in directly.',
+      });
+    }
+
+    if (!user.emailVerificationOTP || !user.emailVerificationExpires) {
+      throw new AppError('No active verification code found. Please request a new code.', 400);
+    }
+
+    if (new Date() > user.emailVerificationExpires) {
+      throw new AppError('The verification code has expired. Please request a new code.', 400);
+    }
+
+    if (String(user.emailVerificationOTP).trim() !== cleanOtp) {
+      throw new AppError('Invalid verification code. Please check and try again.', 400);
+    }
+
+    // Mark user email as verified and clear OTP
+    user.isEmailVerified = true;
+    user.emailVerificationOTP = null;
+    user.emailVerificationExpires = null;
+    await user.save();
+
+    // Generate login token
+    const token = generateToken(user._id, user.role);
+
+    // Send welcome notification now that email is verified
+    try {
+      await sendNotification({
+        type: 'welcome',
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+        },
+        shopName: 'Barabar Shop',
+        link: '/dashboard',
+      });
+    } catch (notifErr) {
+      console.warn('⚠️ Welcome notification error:', notifErr.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully! Welcome to Barabar Shop.',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isEmailVerified: true,
+        profilePicture: user.profilePicture,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Resend Barber Verification OTP
+export const resendBarberVerification = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      throw new AppError('Email address is required', 400);
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const user = await User.findOne({ email: cleanEmail })
+      .select('+emailVerificationOTP +emailVerificationExpires');
+
+    if (!user) {
+      throw new AppError('No account found with this email address', 404);
+    }
+
+    if (user.isEmailVerified) {
+      return res.json({
+        success: true,
+        alreadyVerified: true,
+        message: 'This email is already verified. You can sign in directly.',
+      });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.emailVerificationOTP = otpCode;
+    user.emailVerificationExpires = new Date(Date.now() + 15 * 60 * 1000);
+    await user.save();
+
+    const barber = await Barber.findOne({ userId: user._id });
+
+    const delivery = await sendBarberVerificationEmail({
+      to: user.email,
+      userName: user.name,
+      shopName: barber?.shopName || 'Barber Studio',
+      otpCode,
+    });
+
+    res.json({
+      success: true,
+      message: 'A fresh 6-digit verification code has been sent to your email.',
+      email: user.email,
+      ...(delivery?.simulated ? { previewOtp: otpCode } : {}),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Login user
 export const login = async (req, res, next) => {
   try {
@@ -124,8 +312,10 @@ export const login = async (req, res, next) => {
       throw new AppError('Email and password are required', 400);
     }
 
-    // Find user by email
-    const user = await User.findOne({ email }).select('+password');
+    // Find user by email with verification fields
+    const user = await User.findOne({ email }).select(
+      '+password +emailVerificationOTP +emailVerificationExpires'
+    );
     if (!user) {
       console.log('User not found:', email);
       throw new AppError('Invalid email or password', 401);
@@ -143,6 +333,40 @@ export const login = async (req, res, next) => {
 
     console.log('Password valid for:', email);
 
+    // If barber has not verified email, block login and prompt for verification
+    if (user.role === 'barber' && !user.isEmailVerified) {
+      const hasActiveOtp =
+        user.emailVerificationOTP &&
+        user.emailVerificationExpires &&
+        new Date() < user.emailVerificationExpires;
+
+      let otpCode = user.emailVerificationOTP;
+      let delivery = null;
+
+      if (!hasActiveOtp) {
+        otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        user.emailVerificationOTP = otpCode;
+        user.emailVerificationExpires = new Date(Date.now() + 15 * 60 * 1000);
+        await user.save();
+
+        const barber = await Barber.findOne({ userId: user._id });
+        delivery = await sendBarberVerificationEmail({
+          to: user.email,
+          userName: user.name,
+          shopName: barber?.shopName || 'Barber Studio',
+          otpCode,
+        });
+      }
+
+      return res.status(403).json({
+        success: false,
+        requireVerification: true,
+        message: 'Your Barber Studio email is not verified yet. A verification code has been sent to your email.',
+        email: user.email,
+        previewOtp: otpCode,
+      });
+    }
+
     // Generate token
     const token = generateToken(user._id, user.role);
 
@@ -158,10 +382,10 @@ export const login = async (req, res, next) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        isEmailVerified: user.isEmailVerified,
         profilePicture: user.profilePicture,
         createdAt: user.createdAt,
       },
-      
     });
   } catch (error) {
     console.error('Login error:', error.message);
@@ -262,15 +486,20 @@ export const updateUserProfile = async (req, res, next) => {
   try {
     const { name, phone, profilePicture } = req.body;
 
-    let normalizedPhone = phone ? String(phone).trim() : '';
-    normalizedPhone = normalizedPhone.replace(/[^\d+]/g, '');
-    if (normalizedPhone && !normalizedPhone.startsWith('+')) {
-      const digits = normalizedPhone.replace(/^0+/, '');
-      if (digits.length === 10) normalizedPhone = `+91${digits}`;
-      else normalizedPhone = `+${digits}`;
+    let normalizedPhone;
+    if (phone !== undefined) {
+      let rawPhone = String(phone).trim().replace(/\D/g, '');
+      if (rawPhone.length === 12 && rawPhone.startsWith('91')) {
+        rawPhone = rawPhone.slice(2);
+      }
+      if (rawPhone.length !== 10 || !/^[6-9]\d{9}$/.test(rawPhone)) {
+        throw new AppError('Mobile number must be exactly 10 digits starting with 6, 7, 8, or 9', 400);
+      }
+      normalizedPhone = `+91${rawPhone}`;
     }
 
-    const updates = { name, phone: normalizedPhone };
+    const updates = { name };
+    if (normalizedPhone !== undefined) updates.phone = normalizedPhone;
     if (profilePicture !== undefined) updates.profilePicture = profilePicture;
 
     const user = await User.findByIdAndUpdate(req.user.userId, updates, {

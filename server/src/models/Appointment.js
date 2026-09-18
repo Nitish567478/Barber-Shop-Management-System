@@ -25,7 +25,9 @@ const appointmentSchema = new mongoose.Schema(
         },
       ],
       validate: {
-        validator: (value) => Array.isArray(value) && value.length > 0,
+        validator: function (value) {
+          return (Array.isArray(value) && value.length > 0) || Boolean(this?.serviceId);
+        },
         message: 'Please select at least one service',
       },
     },
@@ -57,8 +59,26 @@ const appointmentSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['cash', 'online'],
+      enum: ['cash', 'online', 'card', 'upi', 'netbanking', 'wallet'],
       default: 'cash',
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'completed', 'failed', 'refunded'],
+      default: 'pending',
+    },
+    transactionId: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    paidAt: {
+      type: Date,
+      default: null,
+    },
+    paymentDetails: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
     price: {
       type: Number,

@@ -171,7 +171,7 @@ function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/90 text-white backdrop-blur-xl">
-      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1720px] px-4 py-3 sm:px-6 lg:px-8">
         {/* MAIN BAR */}
 
         <div className="relative flex items-center justify-between gap-4 rounded-[1.7rem] border border-white/10 bg-white/[0.03] px-4 py-3 shadow-xl shadow-black/20">

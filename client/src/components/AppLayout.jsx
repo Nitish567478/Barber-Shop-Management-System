@@ -5,9 +5,9 @@ import Footer from './Footer';
 
 const AppLayout = () => {
   return (
-    <div className="flex min-h-screen flex-col bg-slate-100">
+    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100 w-full overflow-x-hidden">
       <Navbar />
-      <main className="page-animate flex-1">
+      <main className="page-animate flex-1 w-full">
         <Outlet />
       </main>
       <Footer />

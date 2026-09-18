@@ -30,12 +30,30 @@ const serviceSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ['haircut', 'shaving', 'coloring', 'treatment', 'grooming', 'other'],
+      enum: [
+        'haircut',
+        'beard',
+        'hair care',
+        'face care',
+        'combo',
+        'premium',
+        'shaving',
+        'coloring',
+        'treatment',
+        'grooming',
+        'other',
+      ],
       default: 'haircut',
+      lowercase: true,
+      trim: true,
     },
     image: {
       type: String,
       default: null,
+    },
+    points: {
+      type: [String],
+      default: [],
     },
     isActive: {
       type: Boolean,

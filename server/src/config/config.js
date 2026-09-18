@@ -19,6 +19,8 @@ export const config = {
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
   twilioPhone: process.env.TWILIO_PHONE_NUMBER || process.env.TWILIO_PHONE || '',
   defaultSmsCountryCode: process.env.DEFAULT_SMS_COUNTRY_CODE || '+91',
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_barber_demo',
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || 'barber_demo_secret',
 };
 
 export default config;

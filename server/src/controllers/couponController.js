@@ -2,7 +2,7 @@ import { Appointment } from '../models/Appointment.js';
 import { Barber } from '../models/Barber.js';
 import { Coupon } from '../models/Coupon.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { sendCouponEmail } from '../utils/email.js';
+import { sendNotification } from '../utils/notifications.js';
 
 const couponPopulate = [
   {
@@ -67,11 +67,12 @@ export const createCoupon = async (req, res, next) => {
 
     await coupon.populate(couponPopulate);
 
+    // Dispatch multi-channel notifications (In-App + Email + SMS + WhatsApp)
     await Promise.allSettled(
       coupon.assignedCustomerIds.map((customer) =>
-        sendCouponEmail({
-          to: customer.email,
-          userName: customer.name,
+        sendNotification({
+          type: 'voucher',
+          user: customer,
           shopName: barber.shopName,
           coupon,
         })

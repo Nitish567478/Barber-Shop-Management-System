@@ -18,21 +18,15 @@ export const validateRegister = [
     .withMessage('Password must be at least 8 characters'),
   body('phone')
     .notEmpty()
-    .withMessage('Phone number is required')
+    .withMessage('Mobile number is required')
     .bail()
     .custom((value) => {
-      // allow formats like 9876543210 or +919876543210
-      const normalized = String(value).replace(/[^\d+]/g, '');
-      const pure = normalized.replace(/^\+/, '');
-      if (!/^[0-9]{10,12}$/.test(pure)) {
-        throw new Error('Phone must be 10 digits (with optional country code)');
+      let digits = String(value || '').replace(/\D/g, '');
+      if (digits.length === 12 && digits.startsWith('91')) {
+        digits = digits.slice(2);
       }
-      // if a country code exists, ensure it is +91 or length matches
-      if (pure.length === 11 && !pure.startsWith('91')) {
-        throw new Error('Invalid country code, expected +91 for 11-digit numbers');
-      }
-      if (pure.length > 12) {
-        throw new Error('Phone number too long');
+      if (digits.length !== 10 || !/^[6-9]\d{9}$/.test(digits)) {
+        throw new Error('Mobile number must be exactly 10 digits starting with 6, 7, 8, or 9');
       }
       return true;
     }),
@@ -44,6 +38,18 @@ export const validateLogin = [
 ];
 
 export const validateForgotPassword = [
+  body('email').isEmail().withMessage('Valid email is required'),
+];
+
+export const validateVerifyEmail = [
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('otp')
+    .trim()
+    .isLength({ min: 6, max: 6 })
+    .withMessage('Verification code must be 6 digits'),
+];
+
+export const validateResendVerification = [
   body('email').isEmail().withMessage('Valid email is required'),
 ];
 
@@ -76,12 +82,20 @@ export const validateAppointment = [
     .withMessage('Selected service is invalid'),
   body('appointmentDate')
     .notEmpty()
-    .withMessage('Appointment date is required'),
+    .withMessage('Appointment date is required')
+    .bail()
+    .custom((value) => {
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      if (value < todayStr) {
+        throw new Error('Appointment date cannot be in the past (yesterday or earlier)');
+      }
+      return true;
+    }),
   body('appointmentTime')
     .notEmpty()
     .withMessage('Appointment time is required'),
   body('paymentMethod')
     .optional()
-    .isIn(['cash', 'online'])
+    .isIn(['cash', 'online', 'card', 'upi', 'netbanking', 'wallet'])
     .withMessage('Payment method is invalid'),
 ];

@@ -62,6 +62,26 @@ const userSchema = new mongoose.Schema(
       default: null,
       select: false,
     },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationOTP: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    emailVerificationExpires: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+    notificationPreferences: {
+      email: { type: Boolean, default: true },
+      sms: { type: Boolean, default: true },
+      whatsapp: { type: Boolean, default: true },
+      reminders: { type: Boolean, default: true },
+    },
   },
   { timestamps: true }
 );

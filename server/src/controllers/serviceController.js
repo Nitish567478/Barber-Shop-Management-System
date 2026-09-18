@@ -22,7 +22,7 @@ export const getAllServices = async (req, res, next) => {
 
     const filteredServices = services.filter((service) => {
       if (!service.barberId) {
-        return true;
+        return false;
       }
 
       return (

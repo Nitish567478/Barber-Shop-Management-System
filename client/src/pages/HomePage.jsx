@@ -1,347 +1,582 @@
 import React, { useEffect, useState } from 'react';
-import ShopImageSlider from '../components/ShopImageSlider';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { barbersAPI, servicesAPI } from '../services/api';
-import { fallbackServices } from '../data/featuredServices';
-import { fallbackBarbers } from '../data/featuredBarbers';
+import { barbersAPI } from '../services/api';
+import useUserLocation from '../hooks/useUserLocation';
+import ShopImageSlider from '../components/ShopImageSlider';
+import {
+  Scissors,
+  MapPin,
+  Phone,
+  Star,
+  ShieldCheck,
+  Clock,
+  CreditCard,
+  ArrowRight,
+  Sparkles,
+  Award,
+  CheckCircle2,
+  Navigation,
+  Users,
+} from 'lucide-react';
 
-const heroImage = 'https://i.ibb.co/rfkJrsqc/handsome-man-cutting-beard-barber-shop-salon.jpg';
-const interiorImage = 'https://img.freepik.com/free-photo/hairstylist-washing-client-s-hair-salon_23-2148242852.jpg?ga=GA1.1.1764038526.1777014227&semt=ais_hybrid&w=740&q=80';
-const groomingImage = 'https://i.ibb.co/4ntvPFbc/stylish-man-sitting-barbershop.jpg';
-
-const highlights = [
-  { value: '10+', label: 'Premium grooming services' },
-  { value: '5-star', label: 'Customer-first experience' },
-  { value: '7 days', label: 'Flexible booking availability' },
+const DEFAULT_BARBER_IMAGES = [
+  'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=800&q=80',
 ];
 
-const trustPoints = [
-  'Skilled barbers with modern and classic styling expertise',
-  'Clean studio environment with a polished customer experience',
-  'Simple online booking for haircuts, beard work, and grooming',
+const DEFAULT_AVATARS = [
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
+  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=400&q=80',
+];
+
+const TESTIMONIALS = [
+  {
+    name: 'Rahul Verma',
+    role: 'Regular Client',
+    city: 'Ranchi',
+    rating: 5,
+    comment:
+      'Finding Nitish’s shop on this app made my weekend grooming effortless. The razor line-up and hot towel shave were immaculate!',
+  },
+  {
+    name: 'Sameer Jha',
+    role: 'Executive Client',
+    city: 'Argora, Ranchi',
+    rating: 5,
+    comment:
+      'Booked Aman Style directly through the system. Zero waiting time, pristine hygiene, and the fade cut was top tier.',
+  },
+  {
+    name: 'Vikash Pandey',
+    role: 'Verified Customer',
+    city: 'Giridih',
+    rating: 5,
+    comment:
+      'Hemu Shope provided great beard care. Love the location detection feature that showed me the nearest shop right away.',
+  },
 ];
 
 const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { currentCity, locationStatus, requestLocation, setManualCity } = useUserLocation();
+
   const [barbers, setBarbers] = useState([]);
-  const [services, setServices] = useState([]);
-  const [error, setError] = useState('');
+  const [loadingBarbers, setLoadingBarbers] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  const handleRefresh = () => {
+    requestLocation();
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
+  // Fetch barbers strictly for current detected location
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [barbersRes, servicesRes] = await Promise.all([
-          barbersAPI.getAll(),
-          servicesAPI.getAll(),
-        ]);
+    let isMounted = true;
+    if (!currentCity) {
+      if (locationStatus === 'denied') {
+        setBarbers([]);
+        setLoadingBarbers(false);
+      }
+      return;
+    }
 
-        setBarbers(barbersRes.data.barbers || []);
-        setServices(servicesRes.data.services || []);
+    const fetchBarbers = async () => {
+      try {
+        setLoadingBarbers(true);
+        // Strictly fetch only this current location from MongoDB
+        const response = await barbersAPI.getAll({ city: currentCity, limit: 10 });
+        if (isMounted) {
+          setBarbers(response.data?.barbers || []);
+        }
       } catch (err) {
-        setError('Failed to load latest data');
-        console.error(err);
+        console.error('HomePage barber fetch error:', err);
+        if (isMounted) setBarbers([]);
       } finally {
+        if (isMounted) setLoadingBarbers(false);
       }
     };
 
-    fetchData();
-  }, []);
+    fetchBarbers();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentCity, locationStatus, refreshTrigger]);
 
-  const handleBookAppointment = () => {
+  const handleBookAppointment = (barberId = null) => {
+    const routeState = barberId ? { selectedBarberId: barberId } : undefined;
     if (user) {
-      navigate('/book-appointment');
+      navigate('/book-appointment', { state: routeState });
       return;
     }
-    navigate('/login', { state: { from: '/book-appointment' } });
-  };
-
-  const handleDashboard = () => {
-    if (user) {
-      navigate('/dashboard');
-      return;
-    }
-    navigate('/login');
-  };
-
-  const displayedServices = services.length > 0 ? services.slice(0, 6) : fallbackServices;
-  // If API returns no barbers, don't show fallback/dummy barbers
-  const displayedBarbers = barbers.length > 0 ? barbers.slice(0, 6) : [];
-
-
-  const getBarberExperience = (barber) => barber.experienceYears || barber.experience || 0;
-  const getBarberSpecialization = (barber) => {
-    if (!barber) return '—';
-    if (Array.isArray(barber.specialization)) {
-      return barber.specialization.slice(0, 2).join(' • ') || '—';
-    }
-    return barber.specialization || '—';
+    navigate('/login', { state: { from: '/book-appointment', ...routeState } });
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="w-full bg-slate-950 text-white selection:bg-amber-400 selection:text-black">
+      {/* 1. HERO SECTION (EDGE-TO-EDGE FLUID CONTAINER) */}
+      <section className="relative w-full overflow-hidden border-b border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-black py-16 sm:py-24">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(217,119,6,0.18),rgba(255,255,255,0))]" />
 
-      {/* Landing Page Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.18),_transparent_30%)]" />
-        <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-24">
-          <div className="flex flex-col justify-center">
-            <p className="mb-4 text-sm uppercase tracking-[0.45em] text-amber-400">
-              Precision. Style. Confidence.
-            </p>
-            <h2 className="max-w-2xl text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl">
-              A sharper look starts with a better barbershop experience.
-            </h2>
-            <p className="mt-6 max-w-xl text-lg leading-8 text-slate-300">
-              From clean fades to beard detailing, book with skilled professionals in a space
-              designed for comfort, consistency, and modern style.
-            </p>
+        <div className="relative mx-auto w-full max-w-[1720px] px-4 sm:px-8 lg:px-12 xl:px-16">
+          <div className="grid gap-12 lg:grid-cols-12 lg:items-center">
+            {/* LEFT CONTENT (7 cols) */}
+            <div className="lg:col-span-7">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.25em] text-amber-400 backdrop-blur-md">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Premier Barber Network & Grooming Lounge</span>
+              </div>
 
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-              <button
-                onClick={handleBookAppointment}
-                className="rounded-full bg-amber-400 px-6 py-3 text-base font-semibold text-slate-950 transition hover:bg-amber-300"
-              >
-                Book an Appointment
-              </button>
-              <button
-                onClick={() => navigate('/services')}
-                className="rounded-full border border-white/15 px-6 py-3 text-base font-medium text-white transition hover:border-white/40 hover:bg-white/5"
-              >
-                Explore Services
-              </button>
-            </div>
+              <h1 className="mt-6 text-4xl font-extralight tracking-tight sm:text-6xl lg:text-7xl leading-[1.1]">
+                Crafted for <span className="font-serif italic text-amber-400 font-normal">Distinction</span>, Styled for Confidence.
+              </h1>
 
-            <div className="mt-10 grid gap-4 sm:grid-cols-3">
-              {highlights.map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm"
+              <p className="mt-6 max-w-2xl text-base sm:text-lg text-slate-300 leading-relaxed">
+                Book with master barbers and verified studios near you. Experience handcrafted scissor cuts, razor-sharp fades, and luxury grooming in zero-wait sessions.
+              </p>
+
+              {/* ACTION BUTTONS */}
+              <div className="mt-8 flex flex-wrap gap-4">
+                <button
+                  type="button"
+                  onClick={() => handleBookAppointment()}
+                  className="flex items-center gap-2.5 rounded-2xl bg-amber-400 px-7 py-4 text-sm font-bold text-slate-950 transition duration-200 hover:bg-amber-300 hover:shadow-xl hover:shadow-amber-400/25 active:scale-95 cursor-pointer"
                 >
-                  <p className="text-2xl font-semibold text-white">{item.value}</p>
-                  <p className="mt-1 text-sm text-slate-300">{item.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+                  <span>Book an Appointment</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-2">
-            <div className="sm:col-span-2 overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900 shadow-2xl shadow-black/30">
-              <img
-                src={heroImage}
-                alt="Professional barber styling a client"
-                className="h-[420px] w-full object-cover"
-              />
+                <button
+                  type="button"
+                  onClick={() => navigate('/barbers')}
+                  className="flex items-center gap-2.5 rounded-2xl border border-white/20 bg-white/5 px-6 py-4 text-sm font-semibold text-white transition hover:bg-white/10 hover:border-amber-400/50 cursor-pointer"
+                >
+                  <MapPin className="h-4 w-4 text-amber-400" />
+                  <span>Find Barbers Near Me</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/services')}
+                  className="flex items-center gap-2 rounded-2xl border border-white/10 bg-transparent px-5 py-4 text-sm font-semibold text-slate-300 transition hover:text-white hover:border-white/30 cursor-pointer"
+                >
+                  <Scissors className="h-4 w-4 text-amber-400" />
+                  <span>Explore Services</span>
+                </button>
+              </div>
+
+              {/* STATS STRIP */}
+              <div className="mt-12 grid grid-cols-3 gap-6 border-t border-white/10 pt-8 max-w-2xl">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                    <p className="text-2xl sm:text-3xl font-bold text-white">100%</p>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400">Sterilized & Safe Tools</p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+                    <p className="text-2xl sm:text-3xl font-bold text-amber-400">4.9</p>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400">Average Client Rating</p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Award className="h-5 w-5 text-amber-400" />
+                    <p className="text-2xl sm:text-3xl font-bold text-white">{barbers.length || 0}</p>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400">{currentCity ? `Studios in ${currentCity}` : 'Studios in Area'}</p>
+                </div>
+              </div>
             </div>
-            <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900">
-              <img
-                src={interiorImage}
-                alt="Stylish barbershop interior"
-                className="h-56 w-full object-cover"
-              />
-            </div>
-            <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900">
-              <img
-                src={groomingImage}
-                alt="Beard grooming close-up"
-                className="h-56 w-full object-cover"
-              />
+
+            {/* RIGHT VISUAL (5 cols) */}
+            <div className="lg:col-span-5 relative">
+              <div className="relative mx-auto max-w-lg lg:max-w-none">
+                <div className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-slate-900 shadow-2xl shadow-amber-500/10">
+                  <img
+                    src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=1000&q=80"
+                    alt="Master barber styling client"
+                    className="h-[460px] w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent pointer-events-none" />
+                </div>
+
+                {/* Floating Status Badge */}
+                <div className="absolute -bottom-5 left-4 sm:left-6 z-10 flex items-center gap-3 rounded-2xl border border-white/15 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-400 text-slate-950">
+                    <Scissors className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-400">Verified Studios</p>
+                    <p className="text-sm font-bold text-white">Direct Booking & Open Slots</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Our Barber Section */}
-
-      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        {displayedBarbers.length > 0 ? (
-          <>
-            <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.4em] text-amber-400">
-                  Our Barbers
-                </p>
-                <h2 className="mt-3 text-4xl font-semibold text-white sm:text-5xl">
-                  Meet The Masters
-                </h2>
-                <p className="mt-4 max-w-2xl text-slate-400 leading-7">
-                  Highly trained professionals focused on precision cuts, grooming,
-                  style consultation and premium customer experience.
-                </p>
+      {/* 2. REAL DATABASE BARBERS SHOWCASE - STRICTLY CURRENT LOCATION ONLY */}
+      <section className="w-full py-16 sm:py-24 border-b border-white/10">
+        <div className="mx-auto w-full max-w-[1720px] px-4 sm:px-8 lg:px-12 xl:px-16">
+          <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-3.5 py-1 text-xs font-semibold text-amber-400">
+                <Navigation className="h-3.5 w-3.5" />
+                <span>
+                  {locationStatus === 'requesting'
+                    ? 'Detecting Location...'
+                    : currentCity
+                    ? `Current Location: ${currentCity}`
+                    : 'Location Required'}
+                </span>
               </div>
-              <button
-                onClick={() => navigate("/barbers")}
-                className="rounded-full border border-white/15 px-6 py-3 text-sm font-medium text-white transition hover:border-amber-400 hover:text-amber-300"
-              >
-                View All Barbers
-              </button>
+              <h2 className="mt-3 text-3xl sm:text-4xl lg:text-5xl font-extralight tracking-tight text-white">
+                Barber Studios in <span className="font-serif italic text-amber-400">{currentCity || 'Your Area'}</span>
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm sm:text-base text-slate-400">
+                {currentCity
+                  ? `Showing verified barber studios in your detected location (${currentCity}).`
+                  : 'We only show barber studios matching your current detected location.'}
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-7 md:grid-cols-2 xl:grid-cols-3">
-              {displayedBarbers.map((barber, index) => (
-                <div
-                  key={barber._id}
-                  className="group overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900 transition duration-300 hover:-translate-y-2 hover:border-amber-400/40 hover:shadow-2xl hover:shadow-black/40"
+            {currentCity && (
+              <button
+                type="button"
+                onClick={requestLocation}
+                className="flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-xs font-semibold text-white hover:border-amber-400 hover:text-amber-300 transition cursor-pointer shrink-0"
+              >
+                <MapPin className="h-3.5 w-3.5 text-amber-400" />
+                <span>Refresh Location</span>
+              </button>
+            )}
+          </div>
+
+          {/* BARBERS CONTENT BASED ON CURRENT LOCATION */}
+          {loadingBarbers ? (
+            <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-14 text-center backdrop-blur-md">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-400 animate-pulse mb-4">
+                <MapPin className="h-7 w-7" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Detecting your current location...</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
+                Finding verified barber studios in your area to minimize travel and waiting time.
+              </p>
+            </div>
+          ) : locationStatus === 'denied' && !currentCity ? (
+            /* User denied or browser doesn't have location permission */
+            <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-10 sm:p-14 text-center backdrop-blur-md max-w-2xl mx-auto">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-400 mb-4">
+                <MapPin className="h-7 w-7" />
+              </div>
+              <h3 className="text-xl font-bold text-white">Location Access Required</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-400 leading-relaxed">
+                To show barber shops in your current location, please allow location access or select your city below.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center items-center gap-3">
+                <button
+                  type="button"
+                  onClick={requestLocation}
+                  className="flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3 text-xs sm:text-sm font-bold text-slate-950 hover:bg-amber-300 transition cursor-pointer"
                 >
-                  {/* IMAGE */}
-                  <div className="relative h-72 overflow-hidden">
-                    <ShopImageSlider
-                      images={
-                        Array.isArray(barber.shopImages) && barber.shopImages.length > 0
-                          ? barber.shopImages
-                          : barber.shopImage
-                          ? [barber.shopImage]
-                          : barber.userId?.image
-                          ? [barber.userId.image]
-                          : []
-                      }
-                      className="h-full"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/10 to-transparent" />
+                  <Navigation className="h-4 w-4" />
+                  <span>Allow Location Access</span>
+                </button>
+              </div>
+              <div className="mt-8 border-t border-white/10 pt-6">
+                <p className="text-xs text-slate-400 mb-3">Or choose your current city:</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {['Ranchi', 'Argora', 'Giridih'].map((city) => (
+                    <button
+                      key={city}
+                      type="button"
+                      onClick={() => setManualCity(city)}
+                      className="rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-semibold text-slate-300 hover:border-amber-400 hover:text-white transition cursor-pointer"
+                    >
+                      {city}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : barbers.length === 0 ? (
+            /* Location was detected, but no barber is registered in that city */
+            <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-14 text-center backdrop-blur-md">
+              <MapPin className="mx-auto h-12 w-12 text-amber-400/60 mb-3" />
+              <h3 className="text-white text-lg font-semibold">
+                No barber studios found in {currentCity}
+              </h3>
+              <p className="mt-2 text-slate-400 text-xs sm:text-sm max-w-md mx-auto">
+                Currently, registered barber studios are available in Ranchi, Argora, and Giridih. As soon as a studio registers in {currentCity}, it will appear here.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-300 transition cursor-pointer"
+                >
+                  <MapPin className="h-3.5 w-3.5" />
+                  <span>Re-check Location</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Barbers found strictly in current location */
+            <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3">
+              {barbers.map((barber, index) => {
+                const barberName = barber.userId?.name || 'Master Barber';
+                const shopName = barber.shopName || `${barberName}'s Shop`;
+                const phone = barber.userId?.phone || barber.phone || '';
+                const location = barber.location || 'Local Studio';
+                const experience = barber.experience ?? barber.experienceYears ?? 0;
 
-                    <div className="absolute left-4 top-4">
-                      <span className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-semibold text-slate-950">
-                        Available
-                      </span>
-                    </div>
+                const digits = String(phone).replace(/\D/g, '');
+                const cleanPhone = digits.length === 10 ? `+91${digits}` : digits.length === 12 && digits.startsWith('91') ? `+${digits}` : phone.startsWith('+') ? phone : digits ? `+${digits}` : '';
 
-                    <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3">
-                      <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white backdrop-blur">
-                        {Array.isArray(barber.specialization) ? barber.specialization[0] : (barber.specialization || 'Specialist')}
+                const images =
+                  Array.isArray(barber.shopImages) && barber.shopImages.length > 0
+                    ? barber.shopImages
+                    : barber.shopImage
+                    ? [barber.shopImage]
+                    : [DEFAULT_BARBER_IMAGES[index % DEFAULT_BARBER_IMAGES.length]];
 
-                      </span>
+                const avatar =
+                  barber.userId?.avatar ||
+                  barber.avatar ||
+                  DEFAULT_AVATARS[index % DEFAULT_AVATARS.length];
 
-                      <span className="rounded-full bg-amber-400 px-3 py-1 text-xs font-semibold text-slate-950">
-                        Verified
-                      </span>
-                    </div>
-                  </div>
+                return (
+                  <div
+                    key={barber._id}
+                    className="group flex flex-col justify-between overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/80 backdrop-blur-sm transition-all duration-300 hover:-translate-y-2 hover:border-amber-400/40 hover:shadow-2xl"
+                  >
+                    <div>
+                      {/* STUDIO BANNER */}
+                      <div className="relative h-60 overflow-hidden bg-slate-800">
+                        <ShopImageSlider images={images} className="h-full w-full" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent pointer-events-none" />
 
-                  {/* CONTENT */}
-                  <div className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-2xl font-semibold text-white">
-                          {barber.userId?.name || "Barber"}
+                        <div className="absolute top-3 left-3">
+                          <span className="flex items-center gap-1.5 rounded-full bg-slate-950/80 px-3 py-1 text-[11px] font-semibold text-emerald-400 backdrop-blur-md border border-white/10">
+                            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                            <span>Open Today</span>
+                          </span>
+                        </div>
+
+                        {/* AVATAR OVERLAY */}
+                        <div className="absolute -bottom-5 left-5 z-10">
+                          <img
+                            src={avatar}
+                            alt={barberName}
+                            className="h-14 w-14 rounded-2xl border-2 border-amber-400 object-cover shadow-lg bg-slate-950"
+                          />
+                        </div>
+                      </div>
+
+                      {/* BODY */}
+                      <div className="p-6 pt-9">
+                        <p className="text-[11px] uppercase tracking-wider text-amber-400 font-semibold truncate">
+                          {shopName}
+                        </p>
+                        <h3 className="mt-1 text-2xl font-bold text-white group-hover:text-amber-300 transition">
+                          {barberName}
                         </h3>
 
-                        <p className="mt-2 text-sm text-slate-400">
-                          {barber.userId?.phone ||
-                            "Contact details available after booking"}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl bg-amber-400/10 px-3 py-2 text-center">
-                        <p className="text-lg font-semibold text-amber-300">
-                          {getBarberExperience(barber)}+
-                        </p>
-                        <p className="text-[10px] uppercase tracking-[2px] text-slate-400">
-                          Years
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="mt-5 text-sm leading-7 text-slate-300">
-                      {barber.bio || 'Trusted barber with great customer service.'}
-
-                    </p>
-
-                    <div className="mt-5 rounded-2xl bg-white/5 p-4">
-                      <p className="text-xs uppercase tracking-[3px] text-slate-400">
-                        Specialization
-                      </p>
-
-                      <p className="mt-2 text-sm font-medium text-white">
-                        {getBarberSpecialization(barber)}
-                      </p>
-
-                    </div>
-
-                    <div className="mt-5 grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl bg-white/5 p-4">
-                        <p className="text-xs text-slate-400">Client Focus</p>
-                        <p className="mt-2 text-sm font-medium text-white">
-                          Consultation
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl bg-white/5 p-4">
-                        <p className="text-xs text-slate-400">Slots</p>
-                        <p className="mt-2 text-sm font-medium text-white">
-                          Flexible
-                        </p>
+                        <div className="mt-4 space-y-2.5 text-xs text-slate-300 border-t border-white/10 pt-4">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-amber-400 shrink-0" />
+                            <span className="truncate">{location}</span>
+                          </div>
+                          {cleanPhone && (
+                            <a
+                              href={`tel:${cleanPhone}`}
+                              onClick={() => {
+                                if (navigator.clipboard) navigator.clipboard.writeText(cleanPhone).catch(() => {});
+                              }}
+                              className="flex items-center gap-2 text-slate-200 hover:text-amber-300 transition cursor-pointer"
+                              title="Click to call directly"
+                            >
+                              <Phone className="h-4 w-4 text-amber-400 shrink-0" />
+                              <span className="font-mono tracking-wide">{phone}</span>
+                            </a>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-amber-400 shrink-0" />
+                            <span>{experience > 0 ? `${experience} Years Experience` : 'Verified Studio'}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-6 border-t border-white/10 pt-5">
+                    {/* ACTION CTA */}
+                    <div className="p-6 pt-0 flex gap-2">
+                      {cleanPhone && (
+                        <a
+                          href={`tel:${cleanPhone}`}
+                          onClick={() => {
+                            if (navigator.clipboard) navigator.clipboard.writeText(cleanPhone).catch(() => {});
+                          }}
+                          className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3.5 py-3 text-xs font-semibold text-amber-400 hover:bg-amber-400 hover:text-slate-950 transition cursor-pointer"
+                          title={`Direct Call: ${phone}`}
+                        >
+                          <Phone className="h-4 w-4" />
+                        </a>
+                      )}
                       <button
-                        onClick={handleBookAppointment}
-                        className="w-full rounded-full bg-amber-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-amber-300 crusor-disabled"
+                        type="button"
+                        onClick={() => handleBookAppointment(barber._id)}
+                        className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-amber-400 py-3 text-xs sm:text-sm font-bold text-slate-950 transition hover:bg-amber-300 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95 cursor-pointer"
                       >
-                        Book With Barber
+                        <span>Book with {barberName}</span>
+                        <ArrowRight className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-          </>
-        ) : (
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
-            <p className="text-lg text-slate-300">No barbers available right now</p>
+          )}
+        </div>
+      </section>
+
+      {/* 3. WHY GROOM WITH US (ICON PILLARS) */}
+      <section className="w-full py-16 sm:py-24 border-b border-white/10">
+        <div className="mx-auto w-full max-w-[1720px] px-4 sm:px-8 lg:px-12 xl:px-16">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <p className="text-xs uppercase tracking-[0.35em] text-amber-400 font-semibold">The Barbershop Standard</p>
+            <h2 className="mt-3 text-3xl sm:text-4xl lg:text-5xl font-extralight text-white">
+              Why Discerning Clients <span className="font-serif italic text-amber-400 font-normal">Choose Us</span>
+            </h2>
           </div>
-        )}
-      </section>
 
-      {/* Why Choose Us Section */}
-
-      <section className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-        <div className="rounded-[2rem] border border-white/10 bg-white/5 p-8">
-          <p className="text-sm uppercase tracking-[0.4em] text-amber-400">Why choose us</p>
-          <h3 className="mt-4 text-3xl font-semibold text-white">Professional service with a refined atmosphere</h3>
-        </div>
-        <div className="grid gap-4">
-          {trustPoints.map((point) => (
-            <div
-              key={point}
-              className="rounded-[1.75rem] border border-white/10 bg-slate-900/80 p-6 text-slate-300"
-            >
-              {point}
-            </div>
-          ))}
-        </div>
-      </section>
-
-
-      {/* Booking Slot Section */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-r from-amber-400 to-orange-300 text-slate-950">
-          <div className="grid gap-10 px-6 py-10 sm:px-10 lg:grid-cols-[1.1fr_0.9fr] lg:px-14 lg:py-14">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-900/70">
-                Book your slot
-              </p>
-              <h3 className="mt-4 text-3xl font-semibold sm:text-4xl">
-                Upgrade your routine with a barbershop that looks after the details.
-              </h3>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-900/80">
-                Choose your service, pick your barber, and reserve a time that works for you in
-                just a few clicks.
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-7 backdrop-blur-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-400 mb-4">
+                <Scissors className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Master Stylists Only</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Every barber profile is vetted with verified shop locations, authentic ratings, and specialized techniques.
               </p>
             </div>
-            <div className="flex items-center lg:justify-end">
-              <button
-                onClick={handleBookAppointment}
-                className="w-full rounded-full bg-slate-950 px-6 py-4 text-base font-semibold text-white transition hover:bg-slate-900 sm:w-auto"
+
+            <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-7 backdrop-blur-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-400 mb-4">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-white">100% Sanitized & Sterile</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Hospital-grade disinfection of clippers, single-use fresh razor blades, and clean individual capes.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-7 backdrop-blur-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-400 mb-4">
+                <Clock className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Zero Wait Time</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Reserve your slot in seconds. Walk in at your designated appointment time without standing in long queues.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-7 backdrop-blur-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-400 mb-4">
+                <CreditCard className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Flexible Payments</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Pay via cash, UPI, Google Pay, PhonePe, Paytm, or secure online checkout with instant digital receipts.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. CLIENT REVIEWS */}
+      <section className="w-full py-16 sm:py-24 border-b border-white/10">
+        <div className="mx-auto w-full max-w-[1720px] px-4 sm:px-8 lg:px-12 xl:px-16">
+          <div className="text-center max-w-xl mx-auto mb-12">
+            <p className="text-xs uppercase tracking-[0.35em] text-amber-400 font-semibold">Testimonials</p>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extralight text-white">
+              Trusted by <span className="font-serif italic text-amber-400 font-normal">Clients</span>
+            </h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {TESTIMONIALS.map((t, idx) => (
+              <div
+                key={idx}
+                className="rounded-3xl border border-white/10 bg-slate-900/80 p-7 backdrop-blur-sm flex flex-col justify-between"
               >
-                Book Now
-              </button>
-            </div>
+                <div>
+                  <div className="flex items-center gap-1 text-amber-400 mb-4">
+                    {Array.from({ length: t.rating }).map((_, rIdx) => (
+                      <Star key={rIdx} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    ))}
+                  </div>
+                  <p className="text-sm text-slate-300 leading-relaxed italic">
+                    &ldquo;{t.comment}&rdquo;
+                  </p>
+                </div>
+
+                <div className="mt-6 flex items-center gap-3 border-t border-white/10 pt-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-400/20 text-amber-400 font-bold text-sm">
+                    {t.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">{t.name}</p>
+                    <p className="text-xs text-slate-400">{t.role} · {t.city}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
+      {/* 5. FINAL BOOKING CTA */}
+      <section className="w-full py-16 sm:py-24">
+        <div className="mx-auto w-full max-w-[1720px] px-4 sm:px-8 lg:px-12 xl:px-16">
+          <div className="relative overflow-hidden rounded-[2.5rem] border border-amber-400/30 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 p-8 sm:p-14 text-slate-950 shadow-2xl">
+            <div className="relative z-10 max-w-2xl">
+              <p className="text-xs uppercase tracking-[0.35em] font-bold text-slate-900/70">
+                Upgrade Your Grooming Experience
+              </p>
+              <h3 className="mt-3 text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-950">
+                Ready for your next signature look?
+              </h3>
+              <p className="mt-4 text-base sm:text-lg text-slate-900/80 leading-relaxed font-medium">
+                Choose your service, find your local stylist, and lock in your appointment in just two minutes.
+              </p>
+
+              <div className="mt-8 flex flex-wrap gap-4">
+                <button
+                  type="button"
+                  onClick={() => handleBookAppointment()}
+                  className="rounded-2xl bg-slate-950 px-8 py-4 text-sm font-bold text-white transition hover:bg-slate-900 shadow-xl active:scale-95 cursor-pointer"
+                >
+                  Book Appointment Now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/barbers')}
+                  className="rounded-2xl border-2 border-slate-950/40 bg-transparent px-6 py-4 text-sm font-bold text-slate-950 hover:bg-slate-950/10 transition cursor-pointer"
+                >
+                  Find Nearest Studio
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

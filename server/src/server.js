@@ -8,6 +8,7 @@ import { ensureAdminUser } from './utils/ensureAdminUser.js';
 import { ensureDefaultServices } from './utils/ensureDefaultServices.js';
 import { seedDatabase } from './utils/seedDatabase.js';
 import { startBookingReminderWorker } from './utils/bookingReminders.js';
+import { authenticateToken, authorizeRole } from './middleware/auth.js';
 
 
 // Import routes
@@ -18,6 +19,8 @@ import barberRoutes from './routes/barberRoutes.js';
 import invoiceRoutes from './routes/invoiceRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import couponRoutes from './routes/couponRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 
 const app = express();
 
@@ -51,8 +54,29 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Seed database endpoint (for development only!)
-app.post('/api/seed', async (req, res) => {
+// Database maintenance security guards
+const adminOrDevGuard = (req, res, next) => {
+  if (config.nodeEnv === 'production') {
+    return authenticateToken(req, res, (err) => {
+      if (err) return next(err);
+      authorizeRole('admin')(req, res, next);
+    });
+  }
+  next();
+};
+
+const blockInProduction = (req, res, next) => {
+  if (config.nodeEnv === 'production') {
+    return res.status(403).json({
+      success: false,
+      message: 'This database reset endpoint is disabled in production for safety.',
+    });
+  }
+  next();
+};
+
+// Seed database endpoint (for development or authorized admin only)
+app.post('/api/seed', adminOrDevGuard, async (req, res) => {
   try {
     console.log('🌱 Starting database seed...');
     await seedDatabase();
@@ -77,8 +101,8 @@ app.post('/api/seed', async (req, res) => {
   }
 });
 
-// Reset database endpoint (for development only!)
-app.post('/api/reset', async (req, res) => {
+// Reset database endpoint (blocked in production, dev or admin only)
+app.post('/api/reset', blockInProduction, adminOrDevGuard, async (req, res) => {
   try {
     console.log('🔄 Starting complete database reset...');
     
@@ -136,8 +160,8 @@ app.post('/api/reset', async (req, res) => {
   }
 });
 
-// Clear data and seed fresh endpoint (NUCLEAR OPTION - Use only when stuck!)
-app.post('/api/clear-and-seed', async (req, res) => {
+// Clear data and seed fresh endpoint (NUCLEAR OPTION - blocked in production, dev or admin only)
+app.post('/api/clear-and-seed', blockInProduction, adminOrDevGuard, async (req, res) => {
   try {
     console.log('🔄 NUCLEAR RESET: Clearing ALL data and indexes...');
     
@@ -198,6 +222,8 @@ app.use('/api/barbers', barberRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/coupons', couponRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -212,6 +238,8 @@ app.get('/', (req, res) => {
       invoices: '/api/invoices',
       reports: '/api/reports',
       coupons: '/api/coupons',
+      notifications: '/api/notifications',
+      payments: '/api/payments',
       seed: 'POST /api/seed (development only)',
     },
   });
@@ -229,9 +257,24 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Server startup
-const PORT = config.port;
-app.listen(PORT, () => {
+const PORT = Number(config.port) || 5000;
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${config.nodeEnv}`);
   console.log(`To seed database with data: POST http://localhost:${PORT}/api/seed`);
 });
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`⚠️  Port ${PORT} is busy. Retrying on port ${PORT + 1}...`);
+    setTimeout(() => {
+      server.close();
+      app.listen(PORT + 1, () => {
+        console.log(`Server running on fallback port ${PORT + 1}`);
+      });
+    }, 1000);
+  } else {
+    console.error('Server error:', err);
+  }
+});
+

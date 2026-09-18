@@ -9,11 +9,13 @@ import {
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleBasedRoute from "./components/RoleBasedRoute";
+import GuestRoute from "./components/GuestRoute";
 import AppLayout from "./components/AppLayout";
 import CookieBanner from "./components/CookieBanner";
 import NotFound from "./components/NotFound";
 import OfflineNotice from "./components/OfflineNotice";
 import BarberShopLoader from "./components/BarberShopLoader";
+import RouteTitleUpdater from "./components/RouteTitleUpdater";
 
 /* ===================================================
    LAZY PAGE IMPORTS
@@ -22,11 +24,12 @@ import BarberShopLoader from "./components/BarberShopLoader";
 const HomePage = React.lazy(() => import("./pages/HomePage"));
 const Login = React.lazy(() => import("./pages/Login"));
 const Register = React.lazy(() => import("./pages/Register"));
+const VerifyEmail = React.lazy(() => import("./pages/VerifyEmail"));
 const ForgotPassword = React.lazy(() =>
   import("./pages/ForgotPassword")
 );
 const ResetPassword = React.lazy(() => import("./pages/ResetPassword"));
-const OnlinePaymentSoon = React.lazy(() =>  import("./pages/OnlinePaymentSoon"));
+const PaymentPage = React.lazy(() => import("./pages/PaymentPage"));
 const Dashboard = React.lazy(() => import("./pages/Dashboard"));
 const BarberDashboard = React.lazy(() => import("./pages/BarberDashboard"));
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
@@ -57,8 +60,9 @@ function PageLoader() {
 
 function App() {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
+        <RouteTitleUpdater />
         <CookieBanner />
         <OfflineNotice />
         <Suspense fallback={<PageLoader />}>
@@ -66,11 +70,63 @@ function App() {
             {/* MAIN LAYOUT */}
             <Route element={<AppLayout />}>
               <Route path="/" element={<HomePage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />}/>
-              <Route path="/forgot-password" element={<ForgotPassword />}/>
-              <Route path="/reset-password/:token" element={<ResetPassword />}/>
-              <Route path="/payment-coming-soon" element={<OnlinePaymentSoon />}/>
+              <Route
+                path="/login"
+                element={
+                  <GuestRoute>
+                    <Login />
+                  </GuestRoute>
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  <GuestRoute>
+                    <Register />
+                  </GuestRoute>
+                }
+              />
+              <Route
+                path="/verify-email"
+                element={
+                  <GuestRoute>
+                    <VerifyEmail />
+                  </GuestRoute>
+                }
+              />
+              <Route
+                path="/forgot-password"
+                element={
+                  <GuestRoute>
+                    <ForgotPassword />
+                  </GuestRoute>
+                }
+              />
+              <Route
+                path="/reset-password/:token"
+                element={
+                  <GuestRoute>
+                    <ResetPassword />
+                  </GuestRoute>
+                }
+              />
+              <Route path="/payment-coming-soon" element={<Navigate to="/payment" replace />} />
+              <Route
+                path="/payment"
+                element={
+                  <ProtectedRoute>
+                    <PaymentPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payment/:appointmentId"
+                element={
+                  <ProtectedRoute>
+                    <PaymentPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/services" element={<ServicesPage />}/>
               <Route path="/barbers" element={<BarbersPage />}/>
               <Route path="/about" element={<AboutUs />}/>

@@ -172,24 +172,28 @@ export const isValidEmail = (email = '') => {
 };
 
 /**
- * Validate phone number (Indian format)
+ * Validate phone number (Strict 10-digit Indian mobile format)
  * @param {string} phone - Phone number to validate
  * @returns {boolean} Is valid phone
  */
 export const isValidPhone = (phone = '') => {
-  const regex = /^[6-9]\d{9}$/;
-  return regex.test(phone.replace(/\D/g, ''));
+  let digits = String(phone || '').replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) {
+    digits = digits.slice(2);
+  }
+  return digits.length === 10 && /^[6-9]\d{9}$/.test(digits);
 };
 
 /**
- * Set a message via setter and auto-clear after timeout (default 3000ms)
+ * Set a message via setter and auto-clear after timeout (default 4000ms)
  * @param {Function} setter - state setter (e.g., setSuccess)
  * @param {string} value - message text
- * @param {number} timeout - milliseconds to clear (default 3000)
+ * @param {number} timeout - milliseconds to clear (default 4000)
  */
-export const flash = (setter, value, timeout = 3000) => {
-  setter(value);
+export const flash = (setter, value, timeout = 4000) => {
   if (!setter) return;
+  setter(value);
+  if (!value) return;
   window.setTimeout(() => {
     try { setter(''); } catch (e) { /* ignore */ }
   }, timeout);

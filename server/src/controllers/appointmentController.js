@@ -76,9 +76,6 @@ export const createAppointment = async (req, res, next) => {
       couponCode = '',
     } = req.body;
 
-    if (paymentMethod === 'online') {
-      throw new AppError('Online payment is coming soon. Please choose cash to continue.', 400);
-    }
 
     const services = await Service.find({
       _id: { $in: serviceIds },
@@ -98,6 +95,9 @@ export const createAppointment = async (req, res, next) => {
     ];
 
     let assignedBarberId = barberId || serviceBarberIds[0] || null;
+    if (!assignedBarberId) {
+      throw new AppError('Please choose a barber to book an appointment.', 400);
+    }
 
     if (barberId) {
       const barber = await Barber.findById(barberId);
@@ -153,10 +153,19 @@ export const createAppointment = async (req, res, next) => {
         throw new AppError('Selected appointment date is invalid', 400);
       }
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (requestedDate < today) {
-        throw new AppError('Appointment date cannot be in the past', 400);
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      if (appointmentDate < todayStr) {
+        throw new AppError('Appointment date cannot be in the past (yesterday or earlier)', 400);
+      }
+
+      if (appointmentDate === todayStr) {
+        const now = new Date();
+        const currentHours = String(now.getHours()).padStart(2, '0');
+        const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+        const currentTimeStr = `${currentHours}:${currentMinutes}`;
+        if (appointmentTime < currentTimeStr) {
+          throw new AppError('Selected appointment time has already passed for today', 400);
+        }
       }
 
       const availableDay = requestedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
@@ -261,7 +270,7 @@ export const createAppointment = async (req, res, next) => {
     }
 
     const appointment = new Appointment({
-      customerId: req.user.userId,
+      customerId: req.user.userId || req.user._id || req.user.id,
       barberId: assignedBarberId,
       serviceId: services[0]?._id || null,
       serviceIds: services.map((service) => service._id),
@@ -283,12 +292,30 @@ export const createAppointment = async (req, res, next) => {
 
     const customer = await User.findById(req.user.userId).select('name email phone');
 
+    // 1. Notify Customer (In-App + Email + SMS + WhatsApp)
     await sendNotification({
       type: 'confirmation',
       user: customer || appointment.customerId || {},
       shopName: barberProfile?.shopName || 'Barber Shop',
       appointment,
     });
+
+    // 2. Notify Barber Partner (In-App + Email/SMS)
+    if (barberProfile?.userId) {
+      const barberUser = await User.findById(barberProfile.userId).select('name email phone');
+      if (barberUser) {
+        await sendNotification({
+          type: 'system',
+          user: barberUser,
+          shopName: barberProfile.shopName || 'Barber Shop',
+          appointment,
+          customTitle: `New Booking Received!`,
+          customMessage: `New appointment booked by ${customer?.name || 'Customer'} for ${new Date(appointment.appointmentDate).toLocaleDateString()} at ${appointment.appointmentTime}. Total: Rs. ${appointment.price}.`,
+          link: '/dashboard',
+          tab: 'bookings',
+        });
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -347,6 +374,15 @@ export const cancelAppointment = async (req, res, next) => {
 
     appointment.status = 'cancelled';
     await appointment.save();
+    await appointment.populate(appointmentPopulate);
+
+    // Notify Customer
+    await sendNotification({
+      type: 'cancelled',
+      user: appointment.customerId || {},
+      shopName: appointment.barberId?.shopName || 'Barber Shop',
+      appointment,
+    });
 
     res.json({
       success: true,
@@ -461,6 +497,13 @@ export const updateBarberAppointment = async (req, res, next) => {
     if (status === 'completed') {
       await sendNotification({
         type: 'completed',
+        user: appointment.customerId || {},
+        shopName: appointment.barberId?.shopName || 'Barber Shop',
+        appointment,
+      });
+    } else if (status === 'cancelled') {
+      await sendNotification({
+        type: 'cancelled',
         user: appointment.customerId || {},
         shopName: appointment.barberId?.shopName || 'Barber Shop',
         appointment,
