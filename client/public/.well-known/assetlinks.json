@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.barber_shop_management_system_clien.twa",
+      "sha256_cert_fingerprints": [
+        "5B:D7:B5:07:69:98:E6:79:54:A2:A7:BF:15:48:2C:5D:04:2E:35:CA:89:4E:1B:51:21:90:47:A4:CE:AC:A5:76"
+      ]
+    }
+  }
+]
