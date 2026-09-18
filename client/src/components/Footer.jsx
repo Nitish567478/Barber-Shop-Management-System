@@ -112,7 +112,7 @@ const Footer = () => {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="footer-animate relative border-t border-white/10 bg-slate-950 text-slate-300">
+    <footer className="hidden md:block footer-animate relative border-t border-white/10 bg-slate-950 text-slate-300">
       {/* Accent top line */}
       <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
 
