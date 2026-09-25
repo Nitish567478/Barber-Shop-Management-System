@@ -22,6 +22,7 @@ import {
   Check,
   Landmark,
   ExternalLink,
+  AlertCircle,
 } from 'lucide-react';
 import { appointmentsAPI, paymentsAPI } from '../services/api';
 import BarberShopLoader from '../components/BarberShopLoader';
@@ -61,6 +62,18 @@ const PaymentPage = () => {
 
   // Auto-dismiss error messages after 4 seconds
   useAutoDismiss(error, setError, 4000);
+
+  // Store Razorpay instance ref for safe cleanup on component unmount
+  const razorpayInstanceRef = React.useRef(null);
+  useEffect(() => {
+    return () => {
+      if (razorpayInstanceRef.current && typeof razorpayInstanceRef.current.close === 'function') {
+        try {
+          razorpayInstanceRef.current.close();
+        } catch (_) {}
+      }
+    };
+  }, []);
 
   // Active Payment Method Tab: 'razorpay' | 'upi' | 'card' | 'netbanking' | 'wallet'
   const [activeTab, setActiveTab] = useState('razorpay');
@@ -268,11 +281,7 @@ const PaymentPage = () => {
       };
 
       const razorpayInstance = new window.Razorpay(options);
-      razorpayInstance.on('payment.failed', function (response) {
-        setError(response.error?.description || 'Razorpay payment was declined or cancelled.');
-        setProcessing(false);
-      });
-
+      razorpayInstanceRef.current = razorpayInstance;
       razorpayInstance.open();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to initialize Razorpay checkout');
