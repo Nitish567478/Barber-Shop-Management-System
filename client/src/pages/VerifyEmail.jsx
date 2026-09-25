@@ -54,22 +54,16 @@ const VerifyEmail = () => {
 
   // Resend cooldown timer
   useEffect(() => {
-    let timer;
-    if (resendCooldown > 0) {
-      setCanResend(false);
-      timer = setInterval(() => {
-        setResendCooldown((prev) => {
-          if (prev <= 1) {
-            setCanResend(true);
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
+    if (resendCooldown <= 0) {
       setCanResend(true);
+      return;
     }
+
+    setCanResend(false);
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
