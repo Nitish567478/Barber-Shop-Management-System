@@ -23,12 +23,17 @@ export const register = async (req, res, next) => {
       location,
     } = req.body;
 
-    console.log('Register attempt for email:', email);
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    console.log('Register attempt for email:', cleanEmail);
+
+    // Strictly restrict registration roles to 'customer' or 'barber'
+    const allowedRoles = ['customer', 'barber'];
+    const assignedRole = allowedRoles.includes(role) ? role : 'customer';
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser) {
-      console.log('User already exists with email:', email);
+      console.log('User already exists with email:', cleanEmail);
       throw new AppError('This email is already registered. Please login or use a different email.', 409);
     }
 
@@ -47,7 +52,7 @@ export const register = async (req, res, next) => {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    const isBarber = role === 'barber';
+    const isBarber = assignedRole === 'barber';
 
     // If registering as a barber, require email verification with 6-digit OTP
     let otpCode = null;
@@ -59,11 +64,11 @@ export const register = async (req, res, next) => {
 
     // Create new user
     const user = new User({
-      name,
-      email,
+      name: String(name || '').trim(),
+      email: cleanEmail,
       password: hashedPassword,
       phone: normalizedPhone,
-      role: role || 'customer',
+      role: assignedRole,
       isEmailVerified: !isBarber, // Customers are verified immediately, barbers require OTP verification
       emailVerificationOTP: otpCode,
       emailVerificationExpires: otpExpires,
@@ -306,32 +311,39 @@ export const resendBarberVerification = async (req, res, next) => {
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    console.log('Login attempt for:', email);
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    console.log('Login attempt for:', cleanEmail);
 
-    if (!email || !password) {
+    if (!cleanEmail || !password) {
       throw new AppError('Email and password are required', 400);
     }
 
-    // Find user by email with verification fields
-    const user = await User.findOne({ email }).select(
-      '+password +emailVerificationOTP +emailVerificationExpires'
+    // Find user by normalized email with verification and status fields
+    const user = await User.findOne({ email: cleanEmail }).select(
+      '+password +emailVerificationOTP +emailVerificationExpires +isActive'
     );
     if (!user) {
-      console.log('User not found:', email);
+      console.log('User not found:', cleanEmail);
       throw new AppError('Invalid email or password', 401);
     }
 
-    console.log('User found:', email);
+    // Block deactivated accounts from logging in
+    if (user.isActive === false) {
+      console.log('Deactivated account login attempt:', cleanEmail);
+      throw new AppError('Your account has been deactivated. Please contact support.', 403);
+    }
+
+    console.log('User found:', cleanEmail);
 
     // Compare password safely even if the record lacks a hashed password
     const hashedPassword = String(user.password || '');
     const isPasswordValid = await comparePassword(password, hashedPassword);
     if (!isPasswordValid) {
-      console.log('Invalid password for:', email);
+      console.log('Invalid password for:', cleanEmail);
       throw new AppError('Invalid email or password', 401);
     }
 
-    console.log('Password valid for:', email);
+    console.log('Password valid for:', cleanEmail);
 
     // If barber has not verified email, block login and prompt for verification
     if (user.role === 'barber' && !user.isEmailVerified) {
@@ -363,7 +375,7 @@ export const login = async (req, res, next) => {
         requireVerification: true,
         message: 'Your Barber Studio email is not verified yet. A verification code has been sent to your email.',
         email: user.email,
-        previewOtp: otpCode,
+        ...(delivery?.simulated && config.nodeEnv !== 'production' ? { previewOtp: otpCode } : {}),
       });
     }
 
@@ -396,9 +408,10 @@ export const login = async (req, res, next) => {
 export const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email }).select('+passwordResetToken +passwordResetExpires');
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const user = await User.findOne({ email: cleanEmail }).select('+passwordResetToken +passwordResetExpires +isActive');
 
-    if (user) {
+    if (user && user.isActive !== false) {
       const rawToken = crypto.randomBytes(32).toString('hex');
       const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
@@ -440,10 +453,16 @@ export const forgotPassword = async (req, res, next) => {
 
 export const resetPassword = async (req, res, next) => {
   try {
-    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+    const rawToken = String(req.params.token || '').trim();
+    if (!rawToken) {
+      throw new AppError('Reset token is required', 400);
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
     const user = await User.findOne({
       passwordResetToken: hashedToken,
       passwordResetExpires: { $gt: new Date() },
+      isActive: { $ne: false },
     }).select('+passwordResetToken +passwordResetExpires +password');
 
     if (!user) {

@@ -43,6 +43,8 @@ export const AuthProvider = ({ children }) => {
   // Listen to global 401 logout event
   useEffect(() => {
     const handleAuthLogout = () => {
+      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
       persistUser(null);
     };
     window.addEventListener('auth:logout', handleAuthLogout);
@@ -51,7 +53,7 @@ export const AuthProvider = ({ children }) => {
 
   // Check if saved auth is still valid and sync role from backend profile.
   useEffect(() => {
-    const savedToken = token;
+    const savedToken = getStoredToken();
 
     const initializeAuth = async () => {
       if (!savedToken) {
@@ -63,10 +65,17 @@ export const AuthProvider = ({ children }) => {
         const response = await authAPI.getProfile();
         persistUser(response.data.user);
       } catch (err) {
-        localStorage.removeItem('token');
-        sessionStorage.removeItem('token');
-        persistUser(null);
-        setError('Saved login session expired. Please sign in again.');
+        // Only clear credentials if backend explicitly rejected authentication (401 / 403)
+        // Do NOT destroy user session on momentary network blips or cold starts
+        const status = err.response?.status;
+        if (status === 401 || status === 403) {
+          localStorage.removeItem('token');
+          sessionStorage.removeItem('token');
+          persistUser(null);
+          setError('Saved login session expired. Please sign in again.');
+        } else {
+          console.warn('Network issue while validating auth session:', err.message);
+        }
       } finally {
         setLoading(false);
       }
@@ -78,7 +87,8 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password, rememberMe = true) => {
     try {
       setError(null);
-      const response = await authAPI.login({ email, password });
+      const cleanEmail = String(email || '').trim().toLowerCase();
+      const response = await authAPI.login({ email: cleanEmail, password });
       const { token, user } = response.data;
 
       localStorage.removeItem('token');
@@ -101,7 +111,11 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       setError(null);
-      const response = await authAPI.register(userData);
+      const payload = {
+        ...userData,
+        email: String(userData.email || '').trim().toLowerCase(),
+      };
+      const response = await authAPI.register(payload);
       return response.data;
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Registration failed';
@@ -113,7 +127,9 @@ export const AuthProvider = ({ children }) => {
   const verifyEmail = async (email, otp, rememberMe = true) => {
     try {
       setError(null);
-      const response = await authAPI.verifyEmail({ email, otp });
+      const cleanEmail = String(email || '').trim().toLowerCase();
+      const cleanOtp = String(otp || '').trim();
+      const response = await authAPI.verifyEmail({ email: cleanEmail, otp: cleanOtp });
       const { token, user } = response.data;
       if (token && user) {
         localStorage.removeItem('token');

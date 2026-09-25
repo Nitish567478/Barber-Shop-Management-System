@@ -55,40 +55,33 @@ app.get('/health', (req, res) => {
 });
 
 // Database maintenance security guards
-const adminOrDevGuard = (req, res, next) => {
-  if (config.nodeEnv === 'production') {
-    return authenticateToken(req, res, (err) => {
-      if (err) return next(err);
-      authorizeRole('admin')(req, res, next);
-    });
-  }
-  next();
+// Database maintenance security guards
+const adminGuard = (req, res, next) => {
+  return authenticateToken(req, res, (err) => {
+    if (err) return next(err);
+    authorizeRole('admin')(req, res, next);
+  });
 };
 
 const blockInProduction = (req, res, next) => {
-  if (config.nodeEnv === 'production') {
+  if (config.nodeEnv === 'production' || process.env.NODE_ENV === 'production') {
     return res.status(403).json({
       success: false,
-      message: 'This database reset endpoint is disabled in production for safety.',
+      message: 'This database reset endpoint is strictly disabled in production for safety.',
     });
   }
   next();
 };
 
-// Seed database endpoint (for development or authorized admin only)
-app.post('/api/seed', adminOrDevGuard, async (req, res) => {
+// Seed database endpoint (authorized admin only, disabled in production)
+app.post('/api/seed', blockInProduction, adminGuard, async (req, res) => {
   try {
     console.log('🌱 Starting database seed...');
     await seedDatabase();
     console.log('✅ Database seeding completed!');
     res.json({
       success: true,
-      message: 'Database seeded successfully with dummy data',
-      testAccounts: {
-        admin: { email: 'admin.nitish@gmail.com', password: 'nitishAdmin@123' },
-        barber: { email: 'ali@barbershop.com', password: 'password123' },
-        customer: { email: 'ahmed@email.com', password: 'password123' },
-      },
+      message: 'Database seeded successfully with initial test data',
     });
   } catch (error) {
     console.error('❌ Error seeding database:', error.message);
@@ -96,13 +89,12 @@ app.post('/api/seed', adminOrDevGuard, async (req, res) => {
       success: false,
       message: 'Failed to seed database',
       error: error.message,
-      details: error.stack,
     });
   }
 });
 
-// Reset database endpoint (blocked in production, dev or admin only)
-app.post('/api/reset', blockInProduction, adminOrDevGuard, async (req, res) => {
+// Reset database endpoint (blocked in production, authorized admin only)
+app.post('/api/reset', blockInProduction, adminGuard, async (req, res) => {
   try {
     console.log('🔄 Starting complete database reset...');
     
@@ -141,13 +133,8 @@ app.post('/api/reset', blockInProduction, adminOrDevGuard, async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Database completely reset - all bad indexes removed',
+      message: 'Database completely reset and fresh initial data seeded',
       status: 'READY TO USE',
-      testAccounts: {
-        admin: { email: 'admin.nitish@gmail.com', password: 'nitishAdmin@123' },
-        barber: { email: 'ali@barbershop.com', password: 'password123' },
-        customer: { email: 'ahmed@email.com', password: 'password123' },
-      },
     });
   } catch (error) {
     console.error('❌ Error resetting database:', error.message);
@@ -155,25 +142,22 @@ app.post('/api/reset', blockInProduction, adminOrDevGuard, async (req, res) => {
       success: false,
       message: 'Failed to reset database',
       error: error.message,
-      details: error.stack,
     });
   }
 });
 
-// Clear data and seed fresh endpoint (NUCLEAR OPTION - blocked in production, dev or admin only)
-app.post('/api/clear-and-seed', blockInProduction, adminOrDevGuard, async (req, res) => {
+// Clear data and seed fresh endpoint (blocked in production, authorized admin only)
+app.post('/api/clear-and-seed', blockInProduction, adminGuard, async (req, res) => {
   try {
-    console.log('🔄 NUCLEAR RESET: Clearing ALL data and indexes...');
+    console.log('🔄 CLEAR AND SEED: Clearing data and indexes...');
     
-    // Drop EVERYTHING
     try {
       await mongoose.connection.dropDatabase();
-      console.log('✅ Entire database dropped');
+      console.log('✅ Database dropped');
     } catch (err) {
       console.log('Database drop result:', err.message);
     }
     
-    // Wait for database to fully reset
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     console.log('🌱 Seeding fresh data...');
@@ -182,13 +166,7 @@ app.post('/api/clear-and-seed', blockInProduction, adminOrDevGuard, async (req, 
     
     res.json({
       success: true,
-      message: '✅ DATABASE COMPLETELY RESET & SEEDED',
-      info: 'All old data and indexes removed. Database ready to use.',
-      testAccounts: {
-        admin: { email: 'admin.nitish@gmail.com', password: 'nitishAdmin@123' },
-        barber: { email: 'ali@barbershop.com', password: 'password123' },
-        customer: { email: 'ahmed@email.com', password: 'password123' },
-      },
+      message: 'Database reset and seeded successfully',
     });
   } catch (error) {
     console.error('❌ Error in clear-and-seed:', error.message);

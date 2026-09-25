@@ -38,7 +38,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    const status = error.response?.status;
+    const message = error.response?.data?.message || '';
+    const isTokenFailure = status === 401 || (status === 403 && /token|session/i.test(message));
+
+    if (isTokenFailure) {
       const hadToken = Boolean(localStorage.getItem('token') || sessionStorage.getItem('token'));
       localStorage.removeItem('token');
       sessionStorage.removeItem('token');

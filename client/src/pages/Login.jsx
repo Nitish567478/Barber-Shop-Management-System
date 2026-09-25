@@ -42,8 +42,11 @@ const Login = () => {
   // If user is already logged in, redirect immediately
   useEffect(() => {
     if (user) {
-      const from = location.state?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
+      let targetPath = location.state?.from?.pathname || '/dashboard';
+      if (typeof targetPath !== 'string' || !targetPath.startsWith('/') || targetPath.startsWith('//')) {
+        targetPath = '/dashboard';
+      }
+      navigate(targetPath, { replace: true });
     }
   }, [user, navigate, location.state]);
 
@@ -73,8 +76,11 @@ const Login = () => {
       }
 
       await login(formData.email, formData.password, formData.rememberMe);
-      const from = location.state?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
+      let targetPath = location.state?.from?.pathname || '/dashboard';
+      if (typeof targetPath !== 'string' || !targetPath.startsWith('/') || targetPath.startsWith('//')) {
+        targetPath = '/dashboard';
+      }
+      navigate(targetPath, { replace: true });
     } catch (err) {
       if (err.response?.data?.requireVerification) {
         setVerificationData({

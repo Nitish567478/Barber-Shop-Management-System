@@ -1,5 +1,6 @@
 import { Invoice } from '../models/Invoice.js';
 import { Appointment } from '../models/Appointment.js';
+import { Barber } from '../models/Barber.js';
 import { generateInvoiceNumber } from '../utils/helpers.js';
 import { AppError } from '../middleware/errorHandler.js';
 
@@ -113,6 +114,21 @@ export const getInvoiceById = async (req, res, next) => {
 
     if (!invoice) {
       throw new AppError('Invoice not found', 404);
+    }
+
+    // Verify ownership: customer who paid, assigned barber, or admin
+    const isCustomer = String(invoice.customerId?._id || invoice.customerId) === String(req.user.userId);
+    let isBarber = false;
+    if (req.user.role === 'barber') {
+      const barber = await Barber.findOne({ userId: req.user.userId });
+      if (barber && String(invoice.barberId?._id || invoice.barberId) === String(barber._id)) {
+        isBarber = true;
+      }
+    }
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isCustomer && !isBarber && !isAdmin) {
+      throw new AppError('You are not authorized to view this invoice', 403);
     }
 
     res.json({

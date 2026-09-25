@@ -12,10 +12,18 @@ export const validate = (req, res, next) => {
 
 export const validateRegister = [
   body('name').trim().notEmpty().withMessage('Name is required'),
-  body('email').isEmail().withMessage('Valid email is required'),
+  body('email')
+    .trim()
+    .toLowerCase()
+    .isEmail()
+    .withMessage('Valid email is required'),
   body('password')
-    .isLength({ min: 8 })
-    .withMessage('Password must be at least 8 characters'),
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
+    .withMessage('Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)'),
+  body('role')
+    .optional()
+    .isIn(['customer', 'barber'])
+    .withMessage('Role can only be customer or barber. Admin registration is not permitted.'),
   body('phone')
     .notEmpty()
     .withMessage('Mobile number is required')
@@ -33,30 +41,47 @@ export const validateRegister = [
 ];
 
 export const validateLogin = [
-  body('email').isEmail().withMessage('Valid email is required'),
+  body('email')
+    .trim()
+    .toLowerCase()
+    .isEmail()
+    .withMessage('Valid email is required'),
   body('password').notEmpty().withMessage('Password is required'),
 ];
 
 export const validateForgotPassword = [
-  body('email').isEmail().withMessage('Valid email is required'),
+  body('email')
+    .trim()
+    .toLowerCase()
+    .isEmail()
+    .withMessage('Valid email is required'),
 ];
 
 export const validateVerifyEmail = [
-  body('email').isEmail().withMessage('Valid email is required'),
+  body('email')
+    .trim()
+    .toLowerCase()
+    .isEmail()
+    .withMessage('Valid email is required'),
   body('otp')
     .trim()
     .isLength({ min: 6, max: 6 })
-    .withMessage('Verification code must be 6 digits'),
+    .isNumeric()
+    .withMessage('Verification code must be exactly 6 digits'),
 ];
 
 export const validateResendVerification = [
-  body('email').isEmail().withMessage('Valid email is required'),
+  body('email')
+    .trim()
+    .toLowerCase()
+    .isEmail()
+    .withMessage('Valid email is required'),
 ];
 
 export const validateResetPassword = [
   body('password')
-    .isLength({ min: 8 })
-    .withMessage('Password must be at least 8 characters'),
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
+    .withMessage('Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)'),
 ];
 
 export const validateService = [

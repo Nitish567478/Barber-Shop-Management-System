@@ -21,7 +21,8 @@ const ForgotPassword = () => {
       setError('');
       setMessage('');
       setPreviewUrl('');
-      const response = await authAPI.forgotPassword({ email });
+      const cleanEmail = String(email || '').trim().toLowerCase();
+      const response = await authAPI.forgotPassword({ email: cleanEmail });
       setMessage(response.data.message || 'Reset link sent successfully.');
       setPreviewUrl(response.data.previewUrl || '');
     } catch (err) {

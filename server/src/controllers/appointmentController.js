@@ -403,6 +403,21 @@ export const getAppointmentById = async (req, res, next) => {
       throw new AppError('Appointment not found', 404);
     }
 
+    // Verify ownership: customer who booked, assigned barber, or admin
+    const isCustomer = String(appointment.customerId?._id || appointment.customerId) === String(req.user.userId);
+    let isBarber = false;
+    if (req.user.role === 'barber') {
+      const barber = await Barber.findOne({ userId: req.user.userId });
+      if (barber && String(appointment.barberId?._id || appointment.barberId) === String(barber._id)) {
+        isBarber = true;
+      }
+    }
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isCustomer && !isBarber && !isAdmin) {
+      throw new AppError('You are not authorized to view this appointment', 403);
+    }
+
     res.json({
       success: true,
       appointment,
