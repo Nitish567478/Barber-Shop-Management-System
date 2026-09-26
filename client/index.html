@@ -4,6 +4,38 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <!-- Emergency PWA & Cache Self-Healing Guard -->
+  <script>
+    (function () {
+      window.addEventListener('error', function (e) {
+        var msg = (e && (e.message || '')) + '';
+        if (
+          msg.indexOf("Unexpected token '<'") !== -1 ||
+          msg.indexOf('Failed to fetch dynamically imported module') !== -1 ||
+          msg.indexOf('Importing a module script failed') !== -1 ||
+          msg.indexOf('ChunkLoadError') !== -1
+        ) {
+          var key = 'app_pwa_auto_heal_ts';
+          var last = Number(sessionStorage.getItem(key) || 0);
+          if (Date.now() - last > 8000) {
+            sessionStorage.setItem(key, String(Date.now()));
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                for (var i = 0; i < regs.length; i++) regs[i].unregister();
+              });
+            }
+            if ('caches' in window) {
+              caches.keys().then(function (names) {
+                for (var i = 0; i < names.length; i++) caches.delete(names[i]);
+              });
+            }
+            window.location.reload(true);
+          }
+        }
+      });
+    })();
+  </script>
+
   <!-- Title -->
   <title>Premium Barber Shop | Modern Grooming Studio Worldwide</title>
 

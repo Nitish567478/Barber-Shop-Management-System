@@ -1,8 +1,6 @@
 // Service Worker for BarberShop PWA
-const CACHE_NAME = 'barbershop-pwa-v3';
+const CACHE_NAME = 'barbershop-pwa-v4';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
   '/manifest.json',
   'https://i.ibb.co/0yYptF9d/website-logo.png'
 ];
@@ -65,38 +63,36 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => caches.match('/index.html'))
+        .catch(() => caches.match(event.request).then((res) => res || caches.match('/index.html')))
     );
     return;
   }
 
-  // For static assets, use Stale-While-Revalidate
+  // For static assets (.js, .css, images)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Fetch in background to update cache
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, networkResponse).catch(() => {});
-            }).catch(() => {});
-          }
-        }).catch(() => {});
         return cachedResponse;
       }
 
       return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200) {
-          return networkResponse;
+        // Only cache valid successful basic/cors responses
+        if (networkResponse && networkResponse.status === 200) {
+          const contentType = networkResponse.headers.get('content-type') || '';
+          const isCodeAsset = url.pathname.endsWith('.js') || url.pathname.endsWith('.css');
+          // If a .js or .css asset returned text/html, it's a SPA 404 rewrite. DO NOT CACHE IT.
+          if (isCodeAsset && contentType.includes('text/html')) {
+            return networkResponse;
+          }
+
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache).catch(() => {});
+          }).catch(() => {});
         }
 
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache).catch(() => {});
-        }).catch(() => {});
-
         return networkResponse;
-      }).catch(() => caches.match('/index.html'));
+      });
     })
   );
 });
