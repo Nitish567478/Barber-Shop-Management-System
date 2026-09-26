@@ -101,8 +101,8 @@ const CustomTooltip = ({ active, payload, label, isCurrency = false }) => {
     return (
       <div className="rounded-2xl border border-white/10 bg-slate-950/95 p-3.5 shadow-2xl backdrop-blur-md">
         <p className="font-semibold text-xs text-slate-300 border-b border-white/10 pb-1 mb-2">{label}</p>
-        {payload.map((entry, index) => (
-          <div key={index} className="flex items-center justify-between gap-4 text-xs py-0.5">
+        {payload.map((entry) => (
+          <div key={entry.dataKey || entry.name} className="flex items-center justify-between gap-4 text-xs py-0.5">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color || entry.fill }} />
               <span className="text-slate-400 capitalize">{entry.name}:</span>
@@ -764,8 +764,8 @@ const AdminDashboard = () => {
                       paddingAngle={4}
                       dataKey="value"
                     >
-                      {analytics.bookingStatusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {analytics.bookingStatusData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip content={<CustomTooltip />} />
@@ -855,8 +855,8 @@ const AdminDashboard = () => {
                     <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="bookings" fill="#0ea5e9" radius={[8, 8, 0, 0]}>
-                      {analytics.categoryData.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      {analytics.categoryData.map((cat, index) => (
+                        <Cell key={cat.category || cat.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                       ))}
                     </Bar>
                   </BarChart>

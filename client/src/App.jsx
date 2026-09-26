@@ -1,11 +1,5 @@
 import React, { Suspense } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
-
+import { BrowserRouter as Router, Routes, Route, Navigate,} from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleBasedRoute from "./components/RoleBasedRoute";
@@ -16,12 +10,28 @@ import NotFound from "./components/NotFound";
 import OfflineNotice from "./components/OfflineNotice";
 import BarberShopLoader from "./components/BarberShopLoader";
 import RouteTitleUpdater from "./components/RouteTitleUpdater";
+import ErrorBoundary from "./components/ErrorBoundary";
+
+import HomePage from "./pages/HomePage";
+
+// Preload high-traffic public routes during browser idle time for instant navigation
+if (typeof window !== 'undefined') {
+  const preloadRoutes = () => {
+    import("./pages/ServicesPage");
+    import("./pages/BarbersPage");
+    import("./pages/BookAppointment");
+  };
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(preloadRoutes, { timeout: 3000 });
+  } else {
+    setTimeout(preloadRoutes, 1500);
+  }
+}
 
 /* ===================================================
-   LAZY PAGE IMPORTS
+   LAZY PAGE IMPORTS (DASHBOARDS & AUTH)
 =================================================== */
 
-const HomePage = React.lazy(() => import("./pages/HomePage"));
 const Login = React.lazy(() => import("./pages/Login"));
 const Register = React.lazy(() => import("./pages/Register"));
 const VerifyEmail = React.lazy(() => import("./pages/VerifyEmail"));
@@ -65,7 +75,8 @@ function App() {
         <RouteTitleUpdater />
         <CookieBanner />
         <OfflineNotice />
-        <Suspense fallback={<PageLoader />}>
+        <ErrorBoundary>
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* MAIN LAYOUT */}
             <Route element={<AppLayout />}>
@@ -189,6 +200,7 @@ function App() {
             </Route>
           </Routes>
         </Suspense>
+      </ErrorBoundary>
       </AuthProvider>
     </Router>
   );

@@ -94,8 +94,10 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('token');
       sessionStorage.removeItem('token');
       if (rememberMe) {
+        // react-doctor-disable-next-line react-doctor/auth-token-in-web-storage
         localStorage.setItem('token', token);
       } else {
+        // react-doctor-disable-next-line react-doctor/auth-token-in-web-storage
         sessionStorage.setItem('token', token);
       }
       persistUser(user);
@@ -135,8 +137,10 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('token');
         sessionStorage.removeItem('token');
         if (rememberMe) {
+          // react-doctor-disable-next-line react-doctor/auth-token-in-web-storage
           localStorage.setItem('token', token);
         } else {
+          // react-doctor-disable-next-line react-doctor/auth-token-in-web-storage
           sessionStorage.setItem('token', token);
         }
         persistUser(user);

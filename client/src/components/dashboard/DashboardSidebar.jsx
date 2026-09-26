@@ -246,8 +246,8 @@ const DashboardSidebar = ({
 
         {/* NAVIGATION SECTIONS */}
         <nav className="space-y-6 p-3">
-        {config.sections.map((section, idx) => (
-          <div key={section.title || idx}>
+        {config.sections.map((section) => (
+          <div key={section.title}>
             {!collapsed && (
               <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-300">
                 {section.title}

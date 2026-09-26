@@ -73,22 +73,15 @@ const HomePage = () => {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  // Fetch barbers strictly for current detected location
+  // Fetch barbers immediately (with city if detected, or top studios right away)
   useEffect(() => {
     let isMounted = true;
-    if (!currentCity) {
-      if (locationStatus === 'denied') {
-        setBarbers([]);
-        setLoadingBarbers(false);
-      }
-      return;
-    }
 
     const fetchBarbers = async () => {
       try {
         setLoadingBarbers(true);
-        // Strictly fetch only this current location from MongoDB
-        const response = await barbersAPI.getAll({ city: currentCity, limit: 10 });
+        const params = currentCity ? { city: currentCity, limit: 10 } : { limit: 10 };
+        const response = await barbersAPI.getAll(params);
         if (isMounted) {
           setBarbers(response.data?.barbers || []);
         }
@@ -104,7 +97,7 @@ const HomePage = () => {
     return () => {
       isMounted = false;
     };
-  }, [currentCity, locationStatus, refreshTrigger]);
+  }, [currentCity, refreshTrigger]);
 
   const handleBookAppointment = (barberId = null) => {
     const routeState = barberId ? { selectedBarberId: barberId } : undefined;
@@ -201,6 +194,8 @@ const HomePage = () => {
                   <img
                     src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=1000&q=80"
                     alt="Master barber styling client"
+                    fetchPriority="high"
+                    decoding="async"
                     className="h-[460px] w-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent pointer-events-none" />
@@ -243,7 +238,7 @@ const HomePage = () => {
               <p className="mt-2 max-w-2xl text-sm sm:text-base text-slate-400">
                 {currentCity
                   ? `Showing verified barber studios in your detected location (${currentCity}).`
-                  : 'We only show barber studios matching your current detected location.'}
+                  : 'We show verified barber studios with live open slots and ratings.'}
               </p>
             </div>
 
@@ -261,14 +256,14 @@ const HomePage = () => {
 
           {/* BARBERS CONTENT BASED ON CURRENT LOCATION */}
           {loadingBarbers ? (
-            <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-14 text-center backdrop-blur-md">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-400 animate-pulse mb-4">
-                <MapPin className="h-7 w-7" />
-              </div>
-              <h3 className="text-lg font-bold text-white">Detecting your current location...</h3>
-              <p className="mt-2 text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
-                Finding verified barber studios in your area to minimize travel and waiting time.
-              </p>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((n) => (
+                <div key={`skeleton-${n}`} className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/60 p-6 animate-pulse">
+                  <div className="h-48 w-full rounded-2xl bg-slate-800/80 mb-4" />
+                  <div className="h-5 w-3/4 rounded-lg bg-slate-800/80 mb-2" />
+                  <div className="h-4 w-1/2 rounded-lg bg-slate-800/60" />
+                </div>
+              ))}
             </div>
           ) : locationStatus === 'denied' && !currentCity ? (
             /* User denied or browser doesn't have location permission */
@@ -511,15 +506,15 @@ const HomePage = () => {
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
-            {TESTIMONIALS.map((t, idx) => (
+            {TESTIMONIALS.map((t) => (
               <div
-                key={idx}
+                key={t.name}
                 className="rounded-3xl border border-white/10 bg-slate-900/80 p-7 backdrop-blur-sm flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center gap-1 text-amber-400 mb-4">
                     {Array.from({ length: t.rating }).map((_, rIdx) => (
-                      <Star key={rIdx} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                      <Star key={`star-${t.name}-${rIdx}`} className="h-4 w-4 fill-amber-400 text-amber-400" />
                     ))}
                   </div>
                   <p className="text-sm text-slate-300 leading-relaxed italic">

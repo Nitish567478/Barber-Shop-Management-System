@@ -5,16 +5,68 @@ const withApiPrefix = (url) => {
   return normalizedUrl.endsWith('/api') ? normalizedUrl : `${normalizedUrl}/api`;
 };
 
-// Use a local dev proxy at /api by default in development, otherwise use VITE_API_URL or production backend.
-const API_BASE_URL = import.meta.env.VITE_API_URL
-  ? withApiPrefix(import.meta.env.VITE_API_URL)
-  : import.meta.env.DEV
-    ? '/api'
-    : 'https://barber-shop-management-system-1.onrender.com/api';
+const isLocalhost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+const getBaseUrl = () => {
+  if (isLocalhost) {
+    if (import.meta.env.VITE_API_URL) {
+      return withApiPrefix(import.meta.env.VITE_API_URL);
+    }
+    return '/api';
+  }
+  // Production (Vercel, Netlify, etc.) always routes directly to live backend
+  return 'https://barber-shop-management-system-1.onrender.com/api';
+};
+
+const API_BASE_URL = getBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 20000,
 });
+
+/* Fast In-Memory Request Cache */
+const requestCache = new Map();
+
+export const clearApiCache = (prefix = '') => {
+  if (!prefix) {
+    requestCache.clear();
+    return;
+  }
+  for (const key of requestCache.keys()) {
+    if (key.startsWith(prefix)) {
+      requestCache.delete(key);
+    }
+  }
+};
+
+const cachedGet = async (url, config = {}, ttlMs = 45000) => {
+  const cacheKey = `${url}:${JSON.stringify(config.params || {})}`;
+  const now = Date.now();
+  const cached = requestCache.get(cacheKey);
+
+  if (cached && now - cached.timestamp < ttlMs) {
+    return cached.data;
+  }
+
+  const response = await api.get(url, config);
+  requestCache.set(cacheKey, { data: response, timestamp: now });
+  return response;
+};
+
+// Background warmup for sleeping servers on idle
+if (typeof window !== 'undefined') {
+  const triggerWarmup = () => {
+    fetch('/api/health', { method: 'GET', keepalive: true }).catch(() => {});
+  };
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(triggerWarmup, { timeout: 2000 });
+  } else {
+    setTimeout(triggerWarmup, 300);
+  }
+}
 
 const getStoredToken = () =>
   localStorage.getItem('token') ||
@@ -90,7 +142,7 @@ export const authAPI = {
 ========================= */
 export const servicesAPI = {
   getAll: async (params) =>
-    api.get('/services', { params }),
+    cachedGet('/services', { params }, 60000),
 
   getMine: async () =>
     api.get('/services/me/mine'),
@@ -98,14 +150,20 @@ export const servicesAPI = {
   getById: async (id) =>
     api.get(`/services/${id}`),
 
-  create: async (data) =>
-    api.post('/services', data),
+  create: async (data) => {
+    clearApiCache('/services');
+    return api.post('/services', data);
+  },
 
-  update: async (id, data) =>
-    api.put(`/services/${id}`, data),
+  update: async (id, data) => {
+    clearApiCache('/services');
+    return api.put(`/services/${id}`, data);
+  },
 
-  delete: async (id) =>
-    api.delete(`/services/${id}`),
+  delete: async (id) => {
+    clearApiCache('/services');
+    return api.delete(`/services/${id}`);
+  },
 };
 
 /* =========================
@@ -113,7 +171,7 @@ export const servicesAPI = {
 ========================= */
 export const barbersAPI = {
   getAll: async (params) =>
-    api.get('/barbers', { params }),
+    cachedGet('/barbers', { params }, 45000),
 
   getMine: async () =>
     api.get('/barbers/me/profile'),
@@ -130,23 +188,35 @@ export const barbersAPI = {
   getAdminAll: async () =>
     api.get('/barbers/admin/all'),
 
-  add: async (data) =>
-    api.post('/barbers', data),
+  add: async (data) => {
+    clearApiCache('/barbers');
+    return api.post('/barbers', data);
+  },
 
-  update: async (id, data) =>
-    api.put(`/barbers/${id}`, data),
+  update: async (id, data) => {
+    clearApiCache('/barbers');
+    return api.put(`/barbers/${id}`, data);
+  },
 
-  updateMine: async (data) =>
-    api.put('/barbers/me/profile', data),
+  updateMine: async (data) => {
+    clearApiCache('/barbers');
+    return api.put('/barbers/me/profile', data);
+  },
 
-  submitListing: async () =>
-    api.post('/barbers/me/submit-listing'),
+  submitListing: async () => {
+    clearApiCache('/barbers');
+    return api.post('/barbers/me/submit-listing');
+  },
 
-  approve: async (id) =>
-    api.put(`/barbers/admin/${id}/approve`),
+  approve: async (id) => {
+    clearApiCache('/barbers');
+    return api.put(`/barbers/admin/${id}/approve`);
+  },
 
-  reject: async (id) =>
-    api.delete(`/barbers/admin/${id}/reject`),
+  reject: async (id) => {
+    clearApiCache('/barbers');
+    return api.delete(`/barbers/admin/${id}/reject`);
+  },
 
   getRegularCustomers: async () =>
     api.get('/coupons/barber/regular-customers'),

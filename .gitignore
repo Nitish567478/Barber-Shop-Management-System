@@ -2,36 +2,46 @@
 .env
 .env.local
 .env.*.local
+*.env
 
 # Dependencies
 node_modules/
 package-lock.json
 yarn.lock
 
-# Production
+# Production & Build outputs
 build/
 dist/
+client/dist/
 .next/
+.vercel/
 
-# IDE
+# Workflows & CI
+.github/
+
+# IDE & Editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# OS generated files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 
-# Testing
+# Testing & temporary
 coverage/
 .nyc_output/
+test.md
+*.tmp
+*.temp
 
 # Database
 *.sqlite

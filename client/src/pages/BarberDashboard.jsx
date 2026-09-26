@@ -1743,9 +1743,9 @@ const BarberDashboard = () => {
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {previewStaffMembers.map((staff, idx) => (
+                      {previewStaffMembers.map((staff) => (
                         <span
-                          key={idx}
+                          key={staff}
                           className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/30 bg-gradient-to-r from-amber-500/15 to-yellow-500/10 px-2.5 py-1 text-xs font-semibold text-amber-300 shadow-sm"
                         >
                           <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-slate-950 text-[9px] font-black">

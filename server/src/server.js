@@ -46,7 +46,7 @@ try {
 }
 
 // Health check
-app.get('/health', (req, res) => {
+app.get(['/health', '/api/health'], (req, res) => {
   res.json({ 
     status: 'Server is running', 
     database: dbConnected ? 'connected' : 'disconnected',

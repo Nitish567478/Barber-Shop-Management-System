@@ -14,7 +14,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 // Register PWA Service Worker
 if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        registration.update().catch(() => {});
+      })
+      .catch(() => {});
   });
 }
 

@@ -28,6 +28,8 @@ const paymentMethodLabelMap = {
   online: 'Online Payment',
 };
 
+const methodLabelMap = paymentMethodLabelMap;
+
 const formatCurrency = (val) => `Rs. ${Number(val || 0).toLocaleString('en-IN')}`;
 
 const MyInvoices = () => {
@@ -114,12 +116,13 @@ const MyInvoices = () => {
     });
   };
 
-  const filteredInvoices = invoices.filter((invoice) => {
+  const filteredInvoices = (Array.isArray(invoices) ? invoices : []).filter((invoice) => {
+    if (!invoice) return false;
     const matchesFilter = filter === 'all' || invoice.paymentStatus === filter;
-    const invoiceNumber = invoice.invoiceNumber?.toLowerCase() || '';
-    const barberName = (invoice.barberId?.shopName || invoice.barberId?.userId?.name || '').toLowerCase();
-    const query = search.toLowerCase();
-    const matchesSearch = !search || invoiceNumber.includes(query) || barberName.includes(query);
+    const invoiceNumber = String(invoice.invoiceNumber || '').toLowerCase();
+    const barberName = String(invoice.barberId?.shopName || invoice.barberId?.userId?.name || '').toLowerCase();
+    const query = String(search || '').toLowerCase().trim();
+    const matchesSearch = !query || invoiceNumber.includes(query) || barberName.includes(query);
     return matchesFilter && matchesSearch;
   });
 

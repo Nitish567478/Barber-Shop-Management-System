@@ -94,127 +94,122 @@ export const createAppointment = async (req, res, next) => {
       ),
     ];
 
-    let assignedBarberId = barberId || serviceBarberIds[0] || null;
-    if (!assignedBarberId) {
+    const targetBarberId = barberId || serviceBarberIds[0] || null;
+    if (!targetBarberId) {
       throw new AppError('Please choose a barber to book an appointment.', 400);
     }
 
-    if (barberId) {
-      const barber = await Barber.findById(barberId);
-      if (
-        !barber ||
-        !barber.isActive ||
-        barber.isOpen === false ||
-        !barber.isApproved ||
-        (barber.suspendedUntil && barber.suspendedUntil > new Date()) ||
-        barber.listingStatus && barber.listingStatus !== 'approved'
-      ) {
-        throw new AppError('Selected barber is not accepting bookings right now', 404);
-      }
-      if (
-        serviceBarberIds.length > 0 &&
-        serviceBarberIds.some((serviceBarberId) => serviceBarberId !== String(barberId))
-      ) {
-        throw new AppError(
-          'Selected services belong to a different barber. Please choose services from the same barber.',
-          400
-        );
-      }
+    const barberProfile = await Barber.findOne({
+      $or: [{ _id: targetBarberId }, { userId: targetBarberId }],
+    });
+
+    if (
+      !barberProfile ||
+      !barberProfile.isActive ||
+      barberProfile.isOpen === false ||
+      !barberProfile.isApproved ||
+      (barberProfile.suspendedUntil && barberProfile.suspendedUntil > new Date()) ||
+      (barberProfile.listingStatus && barberProfile.listingStatus !== 'approved')
+    ) {
+      throw new AppError('Selected barber is not accepting bookings right now', 404);
+    }
+
+    const assignedBarberId = barberProfile._id;
+    const barberIdStr = String(barberProfile._id);
+    const userIdStr = barberProfile.userId ? String(barberProfile.userId) : null;
+
+    if (
+      serviceBarberIds.length > 0 &&
+      serviceBarberIds.some(
+        (serviceBarberId) =>
+          serviceBarberId !== barberIdStr &&
+          (!userIdStr || serviceBarberId !== userIdStr)
+      )
+    ) {
+      throw new AppError(
+        'Selected services belong to a different barber. Please choose services from the same barber.',
+        400
+      );
     }
 
     if (serviceBarberIds.length > 1) {
       throw new AppError('Please choose services from one barber at a time.', 400);
     }
 
-    let barberProfile = null;
-    if (assignedBarberId) {
-      barberProfile = await Barber.findById(assignedBarberId);
-      if (
-        !barberProfile ||
-        !barberProfile.isActive ||
-        barberProfile.isOpen === false ||
-        !barberProfile.isApproved ||
-        (barberProfile.suspendedUntil && barberProfile.suspendedUntil > new Date()) ||
-        (barberProfile.listingStatus && barberProfile.listingStatus !== 'approved')
-      ) {
-        throw new AppError('Selected barber is not accepting bookings right now', 404);
+    if (
+      selectedStaffName &&
+      barberProfile.staffMembers.length > 0 &&
+      !barberProfile.staffMembers.includes(selectedStaffName)
+    ) {
+      throw new AppError('Selected staff member is not available in this shop', 400);
+    }
+
+    const requestedDate = new Date(appointmentDate);
+    if (Number.isNaN(requestedDate.getTime())) {
+      throw new AppError('Selected appointment date is invalid', 400);
+    }
+
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    if (appointmentDate < todayStr) {
+      throw new AppError('Appointment date cannot be in the past (yesterday or earlier)', 400);
+    }
+
+    if (appointmentDate === todayStr) {
+      const now = new Date();
+      const currentHours = String(now.getHours()).padStart(2, '0');
+      const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+      const currentTimeStr = `${currentHours}:${currentMinutes}`;
+      if (appointmentTime < currentTimeStr) {
+        throw new AppError('Selected appointment time has already passed for today', 400);
       }
+    }
 
-      if (
-        selectedStaffName &&
-        barberProfile.staffMembers.length > 0 &&
-        !barberProfile.staffMembers.includes(selectedStaffName)
-      ) {
-        throw new AppError('Selected staff member is not available in this shop', 400);
-      }
+    const availableDay = requestedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const availability = barberProfile.availability?.[availableDay];
+    const workingStart = availability?.start || barberProfile.openingTime;
+    const workingEnd = availability?.end || barberProfile.closingTime;
 
-      const requestedDate = new Date(appointmentDate);
-      if (Number.isNaN(requestedDate.getTime())) {
-        throw new AppError('Selected appointment date is invalid', 400);
-      }
+    if (availability && availability.isWorking === false) {
+      throw new AppError('Selected barber is not working on the chosen day', 400);
+    }
 
-      const todayStr = new Date().toLocaleDateString('en-CA');
-      if (appointmentDate < todayStr) {
-        throw new AppError('Appointment date cannot be in the past (yesterday or earlier)', 400);
-      }
+    if (appointmentTime < workingStart || appointmentTime >= workingEnd) {
+      throw new AppError(
+        `Selected time must be between ${workingStart} and ${workingEnd}`,
+        400
+      );
+    }
 
-      if (appointmentDate === todayStr) {
-        const now = new Date();
-        const currentHours = String(now.getHours()).padStart(2, '0');
-        const currentMinutes = String(now.getMinutes()).padStart(2, '0');
-        const currentTimeStr = `${currentHours}:${currentMinutes}`;
-        if (appointmentTime < currentTimeStr) {
-          throw new AppError('Selected appointment time has already passed for today', 400);
-        }
-      }
+    const slotStart = new Date(requestedDate);
+    slotStart.setHours(0, 0, 0, 0);
+    const slotEnd = new Date(requestedDate);
+    slotEnd.setHours(23, 59, 59, 999);
 
-      const availableDay = requestedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-      const availability = barberProfile.availability?.[availableDay];
-      const workingStart = availability?.start || barberProfile.openingTime;
-      const workingEnd = availability?.end || barberProfile.closingTime;
+    const existingQuery = {
+      barberId: assignedBarberId,
+      appointmentDate: {
+        $gte: slotStart,
+        $lte: slotEnd,
+      },
+      appointmentTime,
+      status: 'scheduled',
+    };
+    if (selectedStaffName) {
+      existingQuery.selectedStaffName = selectedStaffName;
+    }
 
-      if (availability && availability.isWorking === false) {
-        throw new AppError('Selected barber is not working on the chosen day', 400);
-      }
+    const existingAppointments = await Appointment.countDocuments(existingQuery);
+    const effectiveCapacity = selectedStaffName
+      ? 1
+      : barberProfile.staffMembers.length > 0
+      ? barberProfile.staffMembers.length
+      : barberProfile.slotCapacity || 3;
 
-      if (appointmentTime < workingStart || appointmentTime >= workingEnd) {
-        throw new AppError(
-          `Selected time must be between ${workingStart} and ${workingEnd}`,
-          400
-        );
-      }
-
-      const slotStart = new Date(requestedDate);
-      slotStart.setHours(0, 0, 0, 0);
-      const slotEnd = new Date(requestedDate);
-      slotEnd.setHours(23, 59, 59, 999);
-
-      const existingQuery = {
-        barberId: assignedBarberId,
-        appointmentDate: {
-          $gte: slotStart,
-          $lte: slotEnd,
-        },
-        appointmentTime,
-        status: 'scheduled',
-      };
-      if (selectedStaffName) {
-        existingQuery.selectedStaffName = selectedStaffName;
-      }
-
-      const existingAppointments = await Appointment.countDocuments(existingQuery);
-      const effectiveCapacity = selectedStaffName
-        ? 1
-        : barberProfile.staffMembers.length > 0
-        ? barberProfile.staffMembers.length
-        : barberProfile.slotCapacity || 3;
-
-      if (existingAppointments >= effectiveCapacity) {
-        throw new AppError(
-          'This time slot is sold out. Please choose another time.',
-          409
-        );
-      }
+    if (existingAppointments >= effectiveCapacity) {
+      throw new AppError(
+        'This time slot is sold out. Please choose another time.',
+        409
+      );
     }
 
     const totalDuration = services.reduce((sum, service) => sum + (service.duration || 0), 0);

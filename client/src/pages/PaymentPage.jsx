@@ -1366,8 +1366,8 @@ Thank you for booking with ${shopName}!
                 <div className="mt-4 border-t border-white/10 pt-4">
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Services</p>
                   <div className="mt-2 divide-y divide-white/5 text-sm">
-                    {appointmentServices.map((service, idx) => (
-                      <div key={idx} className="flex items-center justify-between py-2">
+                    {appointmentServices.map((service) => (
+                      <div key={service._id || service.name} className="flex items-center justify-between py-2">
                         <span className="text-slate-300">{service.name || 'Service'}</span>
                         <span className="font-medium text-white">{formatCurrency(service.price)}</span>
                       </div>

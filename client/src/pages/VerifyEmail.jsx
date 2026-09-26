@@ -15,6 +15,15 @@ import {
 } from 'lucide-react';
 import useAutoDismiss from '../hooks/useAutoDismiss';
 
+const OTP_SLOTS = [
+  { id: 'otp-slot-0', index: 0 },
+  { id: 'otp-slot-1', index: 1 },
+  { id: 'otp-slot-2', index: 2 },
+  { id: 'otp-slot-3', index: 3 },
+  { id: 'otp-slot-4', index: 4 },
+  { id: 'otp-slot-5', index: 5 },
+];
+
 const VerifyEmail = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -296,17 +305,17 @@ const VerifyEmail = () => {
                 className="flex items-center justify-between gap-2 sm:gap-3"
                 onPaste={handlePaste}
               >
-                {otp.map((digit, index) => (
+                {OTP_SLOTS.map((slot) => (
                   <input
-                    key={index}
-                    ref={(el) => (inputRefs.current[index] = el)}
+                    key={slot.id}
+                    ref={(el) => (inputRefs.current[slot.index] = el)}
                     type="text"
                     inputMode="numeric"
                     pattern="\d*"
                     maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(index, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(index, e)}
+                    value={otp[slot.index]}
+                    onChange={(e) => handleOtpChange(slot.index, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(slot.index, e)}
                     disabled={loading || isVerified}
                     className="h-13 w-11 sm:h-16 sm:w-14 rounded-2xl border border-white/10 bg-slate-950/80 text-center text-xl sm:text-2xl font-bold font-mono text-white transition focus:border-amber-400 focus:bg-slate-900 focus:ring-2 focus:ring-amber-400/20 focus:outline-none disabled:opacity-50 selection:bg-transparent"
                   />

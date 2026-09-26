@@ -406,9 +406,9 @@ function ServicesPage() {
         ) : (
           /* SERVICE CARDS GRID */
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredServices.map((item, idx) => (
+            {filteredServices.map((item) => (
               <div
-                key={item._id || item.id || idx}
+                key={item._id || item.id}
                 className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-slate-900/80 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-amber-400/40 hover:shadow-2xl hover:shadow-amber-500/10"
               >
                 <div>
@@ -551,8 +551,8 @@ function ServicesPage() {
                   What is included:
                 </p>
                 <ul className="space-y-1.5">
-                  {selectedServiceModal.points.map((p, idx) => (
-                    <li key={idx} className="flex items-center gap-2 text-xs text-slate-200">
+                  {selectedServiceModal.points.map((p) => (
+                    <li key={p} className="flex items-center gap-2 text-xs text-slate-200">
                       <span className="text-amber-400">✓</span> {p}
                     </li>
                   ))}
